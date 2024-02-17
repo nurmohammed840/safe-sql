@@ -1,0 +1,9 @@
+[package]
+name = "sql-parser"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+syn = "2"
+proc-macro2 = "1"
+quote = "1.0.35"

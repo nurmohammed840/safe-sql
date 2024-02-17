@@ -1,0 +1,96 @@
+Summand {
+    left: Factor {
+        left: Value(
+            "1",
+        ),
+        right: Some(
+            (
+                Divide,
+                Factor {
+                    left: Column(
+                        Column {
+                            schema_name: None,
+                            table_name: None,
+                            name: Ident(
+                                c,
+                            ),
+                        },
+                    ),
+                    right: None,
+                },
+            ),
+        ),
+    },
+    right: Some(
+        (
+            Plus,
+            Summand {
+                left: Factor {
+                    left: Column(
+                        Column {
+                            schema_name: None,
+                            table_name: None,
+                            name: Ident(
+                                b,
+                            ),
+                        },
+                    ),
+                    right: None,
+                },
+                right: Some(
+                    (
+                        Plus,
+                        Summand {
+                            left: Factor {
+                                left: Value(
+                                    "2",
+                                ),
+                                right: Some(
+                                    (
+                                        Multiply,
+                                        Factor {
+                                            left: Value(
+                                                "3",
+                                            ),
+                                            right: Some(
+                                                (
+                                                    Modulo,
+                                                    Factor {
+                                                        left: Value(
+                                                            "4",
+                                                        ),
+                                                        right: None,
+                                                    },
+                                                ),
+                                            ),
+                                        },
+                                    ),
+                                ),
+                            },
+                            right: Some(
+                                (
+                                    Plus,
+                                    Summand {
+                                        left: Factor {
+                                            left: Column(
+                                                Column {
+                                                    schema_name: None,
+                                                    table_name: None,
+                                                    name: Ident(
+                                                        a,
+                                                    ),
+                                                },
+                                            ),
+                                            right: None,
+                                        },
+                                        right: None,
+                                    },
+                                ),
+                            ),
+                        },
+                    ),
+                ),
+            },
+        ),
+    ),
+}

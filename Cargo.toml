@@ -1,0 +1,12 @@
+[workspace]
+members = [ "libs/sql-parser","libs/sqlx-macros"]
+
+[package]
+name = "pg_sqlx"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.36.0", features = ["full"] }
+tokio-postgres = "0.7.10"
+sqlx-macros = { path = "libs/sqlx-macros" }
