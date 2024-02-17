@@ -1,5 +1,5 @@
 
-use super::ast::Expression;
+use super::ast::OrExpr;
 use crate::*;
 
 pub enum Value {
@@ -7,7 +7,7 @@ pub enum Value {
     Int(LitInt),
     Float(LitFloat),
     Boolean { span: Span, value: Option<bool> },
-    ARRAY(Punctuated<Expression, Token![,]>),
+    ARRAY(Punctuated<OrExpr, Token![,]>),
     Null { span: Span },
 }
 

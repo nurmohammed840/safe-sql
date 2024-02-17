@@ -34,7 +34,6 @@ impl Parse for RightHandSide {
     }
 }
 
-#[derive(Debug)]
 pub enum Condition {
     Operand {
         left: Operand,
@@ -53,14 +52,14 @@ mod ast_name {
     #[derive(Debug, Default)]
     pub struct AndExpr;
     #[derive(Debug, Default)]
-    pub struct Expression;
+    pub struct OrExpr;
 }
 
 pub type Factorial = Ast<ast_name::Factorial, Term, Factor>;
 pub type Arithmetic = Ast<ast_name::Arithmetic, Factorial, Sign>;
 pub type Operand = Ast<ast_name::Operand, Arithmetic, ConcatOperator>;
 pub type AndExpr = Ast<ast_name::AndExpr, Condition, AndOperator>;
-pub type Expression = Ast<ast_name::Expression, AndExpr, OrOperator>;
+pub type OrExpr = Ast<ast_name::OrExpr, AndExpr, OrOperator>;
 
 pub struct Ast<N, T, Operator> {
     pub name: N,
@@ -207,12 +206,32 @@ impl<N: Default, T: Parse, O: Parse> Parse for Ast<N, T, O> {
     }
 }
 
+impl fmt::Debug for Condition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Operand { left, right } => match right {
+                None => left.fmt(f),
+                Some(rhs) => f
+                    .debug_struct("Operand")
+                    .field("left", left)
+                    .field("right", rhs)
+                    .finish(),
+            },
+            Self::Not(arg0) => f.debug_tuple("Not").field(arg0).finish(),
+        }
+    }
+}
+
 impl<N: fmt::Debug, T: fmt::Debug, Operator: fmt::Debug> fmt::Debug for Ast<N, T, Operator> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct(&format!("{:?}", self.name))
-            .field("left", &self.left)
-            .field("right", &self.right)
-            .finish()
+        match self.right {
+            None => self.left.fmt(f),
+            Some(ref right) => f
+                .debug_struct(&format!("{:?}", self.name))
+                .field("left", &self.left)
+                .field("right", &right)
+                .finish(),
+        }
     }
 }
 
@@ -222,8 +241,8 @@ mod tests {
 
     #[test]
     fn test_name() {
-        let g: Value = utils::test::syntex! {
-            //  1 / c + b + 2 * 3 % 4 + a || ad
+        let g: OrExpr = utils::test::syntex! {
+            a and 54 or 4 + 4
         }
         .unwrap();
         println!("{:#?}", g);
