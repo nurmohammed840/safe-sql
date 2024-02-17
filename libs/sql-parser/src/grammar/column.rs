@@ -1,14 +1,16 @@
 use super::name::Name;
 use crate::*;
 
+// type WildCard = Column<Token![*]>;
+
 #[derive(Debug)]
-pub struct Column {
+pub struct Column<T> {
     pub schema_name: Option<Name>,
     pub table_name: Option<Name>,
-    pub name: Name,
+    pub alias: T,
 }
 
-impl Parse for Column {
+impl<T: Parse> Parse for Column<T> {
     fn parse(input: ParseStream) -> Result<Self> {
         let fetch_name = || -> Result<Option<Name>> {
             if input.peek2(Token![.]) {
@@ -22,7 +24,7 @@ impl Parse for Column {
         let mut column = Self {
             schema_name: None,
             table_name: None,
-            name: input.parse()?,
+            alias: input.parse()?,
         };
         match names {
             (Some(schema_name), Some(table_name)) => {
@@ -36,17 +38,17 @@ impl Parse for Column {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
+   
     #[test]
     fn parse_column() {
-        let _: Column = syntex! {
-            scheman_name."table_alias"."awdd"
-        }.unwrap();
-        let _: Column = syntex! { adw }.unwrap();
-        let _: Column = syntex! { "table_alias".dsd }.unwrap();
+        let _: Column<Name> = syntex! {
+            scheman_name."table_alias"."column"
+        }
+        .unwrap();
+        let _: Column<Name> = syntex! { field }.unwrap();
+        let _: Column<Name> = syntex! { "document".field }.unwrap();
     }
 }

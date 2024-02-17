@@ -1,10 +1,11 @@
-use super::{column::Column, value::Value};
+use super::{ast::Expression, column::Column, value::Value, Name};
 use crate::*;
 
 #[derive(Debug)]
 pub enum Term {
     Value(Value),
-    Column(Column),
+    Column(Column<Name>),
+    // Expression(Box<Expression>),
 }
 
 impl Parse for Term {
@@ -14,7 +15,7 @@ impl Parse for Term {
             input.advance_to(&fork);
             return Ok(Term::Value(v));
         }
-        if let Ok(v) = fork.parse::<Column>() {
+        if let Ok(v) = fork.parse() {
             input.advance_to(&fork);
             return Ok(Term::Column(v));
         }

@@ -43,12 +43,6 @@ pub enum Condition {
     Not(Box<Condition>),
 }
 
-pub struct Ast<N, T, Operator> {
-    pub name: N,
-    pub left: T,
-    pub right: Option<(Operator, Box<Self>)>,
-}
-
 mod ast_name {
     #[derive(Debug, Default)]
     pub struct Factorial;
@@ -57,7 +51,7 @@ mod ast_name {
     #[derive(Debug, Default)]
     pub struct Operand;
     #[derive(Debug, Default)]
-    pub struct And;
+    pub struct AndExpr;
     #[derive(Debug, Default)]
     pub struct Expression;
 }
@@ -65,8 +59,14 @@ mod ast_name {
 pub type Factorial = Ast<ast_name::Factorial, Term, Factor>;
 pub type Arithmetic = Ast<ast_name::Arithmetic, Factorial, Sign>;
 pub type Operand = Ast<ast_name::Operand, Arithmetic, ConcatOperator>;
-pub type And = Ast<ast_name::And, Condition, AndOperator>;
-pub type Expression = Ast<ast_name::Expression, And, OrOperator>;
+pub type AndExpr = Ast<ast_name::AndExpr, Condition, AndOperator>;
+pub type Expression = Ast<ast_name::Expression, AndExpr, OrOperator>;
+
+pub struct Ast<N, T, Operator> {
+    pub name: N,
+    pub left: T,
+    pub right: Option<(Operator, Box<Self>)>,
+}
 
 // -------------------------------------------------------------------------------------
 
