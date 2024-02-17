@@ -6,13 +6,12 @@ pub mod grammar;
 
 pub(crate) mod utils;
 
-use proc_macro2::{Ident, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Ident, Span, TokenStream, TokenTree};
 use quote::TokenStreamExt;
+use std::fmt;
 use syn::{
-    parse::{Parse, ParseStream},
-    Error,  LitFloat, LitInt, LitStr, Result, Token,
+    ext::IdentExt,
+    parse::{discouraged::Speculative, Parse, ParseStream, Parser},
+    punctuated::Punctuated,
+    Error, LitFloat, LitInt, LitStr, Result, Token,
 };
-use syn::ext::IdentExt;
-use proc_macro2::Span;
-use syn::parse::discouraged::Speculative;
-use syn::punctuated::Punctuated;

@@ -24,7 +24,7 @@ pub enum Compare {
 #[derive(Debug)]
 pub enum RightHandSide {
     Comparison(Compare, Operand),
-    Quantified
+    Quantified,
 }
 
 impl Parse for RightHandSide {
@@ -43,17 +43,30 @@ pub enum Condition {
     Not(Box<Condition>),
 }
 
-#[derive(Debug)]
-pub struct Ast<T, Operator> {
+pub struct Ast<N, T, Operator> {
+    pub name: N,
     pub left: T,
     pub right: Option<(Operator, Box<Self>)>,
 }
 
-pub type Factorial = Ast<Term, Factor>;
-pub type Arithmetic = Ast<Factorial, Sign>;
-pub type Operand = Ast<Arithmetic, ConcatOperator>;
-pub type And = Ast<Condition, AndOperator>;
-pub type Expression = Ast<And, OrOperator>;
+mod ast_name {
+    #[derive(Debug, Default)]
+    pub struct Factorial;
+    #[derive(Debug, Default)]
+    pub struct Arithmetic;
+    #[derive(Debug, Default)]
+    pub struct Operand;
+    #[derive(Debug, Default)]
+    pub struct And;
+    #[derive(Debug, Default)]
+    pub struct Expression;
+}
+
+pub type Factorial = Ast<ast_name::Factorial, Term, Factor>;
+pub type Arithmetic = Ast<ast_name::Arithmetic, Factorial, Sign>;
+pub type Operand = Ast<ast_name::Operand, Arithmetic, ConcatOperator>;
+pub type And = Ast<ast_name::And, Condition, AndOperator>;
+pub type Expression = Ast<ast_name::Expression, And, OrOperator>;
 
 // -------------------------------------------------------------------------------------
 
@@ -101,7 +114,7 @@ parser!(@Operator:
     OrOperator = "OR"
     AndOperator = "AND"
 );
-parser!(@Symbol: 
+parser!(@Symbol:
     Factor {
         '*' => Multiply,
         '/' => Divide,
@@ -112,7 +125,6 @@ parser!(@Symbol:
         '-' => Minus
     }
 );
-
 
 impl Parse for ConcatOperator {
     fn parse(input: ParseStream) -> Result<Self> {
@@ -180,10 +192,11 @@ impl Parse for Condition {
     }
 }
 
-impl<T: Parse, O: Parse> Parse for Ast<T, O> {
+impl<N: Default, T: Parse, O: Parse> Parse for Ast<N, T, O> {
     fn parse(input: ParseStream) -> Result<Self> {
         let left = input.parse()?;
         Ok(Self {
+            name: N::default(),
             left,
             right: if let Ok(o) = O::parse(input) {
                 Some((o, input.parse()?))
@@ -194,18 +207,25 @@ impl<T: Parse, O: Parse> Parse for Ast<T, O> {
     }
 }
 
+impl<N: fmt::Debug, T: fmt::Debug, Operator: fmt::Debug> fmt::Debug for Ast<N, T, Operator> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct(&format!("{:?}", self.name))
+            .field("left", &self.left)
+            .field("right", &self.right)
+            .finish()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_name() {
-        let g: Expression = utils::test::syntex! {
+        let g: Value = utils::test::syntex! {
             //  1 / c + b + 2 * 3 % 4 + a || ad
-             dad 
         }
         .unwrap();
-
         println!("{:#?}", g);
     }
 }

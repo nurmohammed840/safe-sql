@@ -20,9 +20,7 @@ impl Name {
 impl Parse for Name {
     fn parse(input: ParseStream) -> Result<Self> {
         input.step(|c| {
-            let Some((tt, rest)) = c.token_tree() else {
-                return Err(c.error("expected name"));
-            };
+            let (tt, rest) = c.token_tree().ok_or(c.error("invalid `Name`"))?;
             let name = match tt {
                 TokenTree::Ident(v) => Name::Ident(v),
                 TokenTree::Literal(v) => {
@@ -30,7 +28,7 @@ impl Parse for Name {
                     s.append(v);
                     Name::String(syn::parse2::<LitStr>(s)?)
                 }
-                tt => return Err(Error::new(tt.span(), "expected name")),
+                tt => return Err(Error::new(tt.span(), "expected `Name`")),
             };
             Ok((name, rest))
         })
@@ -43,19 +41,5 @@ impl std::fmt::Debug for Name {
             Self::Ident(arg0) => arg0.fmt(f),
             Self::String(arg0) => arg0.value().fmt(f),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_num() {
-        // it should not pass
-        let _: Name = utils::test::syntex! {
-            TRUE
-        }
-        .unwrap();
     }
 }

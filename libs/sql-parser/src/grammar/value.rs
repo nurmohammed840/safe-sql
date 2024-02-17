@@ -1,3 +1,4 @@
+
 use super::ast::Expression;
 use crate::*;
 
@@ -6,7 +7,7 @@ pub enum Value {
     Int(LitInt),
     Float(LitFloat),
     Boolean { span: Span, value: Option<bool> },
-    ARRAY(Vec<Expression>),
+    ARRAY(Punctuated<Expression, Token![,]>),
     Null { span: Span },
 }
 
@@ -37,11 +38,23 @@ impl Parse for Value {
                         value: Some(false),
                         span,
                     }
-                } 
-                else if tt.eq_ignore_ascii_case("NULL") {
+                } else if tt.eq_ignore_ascii_case("ARRAY") {
+                    let error = s.error("expected `[]`");
+                    let (tt, rest) = rest.token_tree().ok_or(error.clone())?;
+                    match tt {
+                        TokenTree::Group(group) => {
+                            if !matches!(group.delimiter(), Delimiter::Bracket) {
+                                return Err(error);
+                            }
+                            let tokens = group.stream();
+                            let punctuated = |a: ParseStream| a.call(Punctuated::parse_terminated);
+                            return Ok((Self::ARRAY(punctuated.parse2(tokens)?), rest));
+                        }
+                        _ => return Err(error),
+                    }
+                } else if tt.eq_ignore_ascii_case("NULL") {
                     Self::Null { span }
-                }
-                 else {
+                } else {
                     return Err(Error::new(span, "invalid value"));
                 };
                 Ok((val, rest))
@@ -59,7 +72,7 @@ impl std::fmt::Debug for Value {
             Self::Int(arg0) => arg0.to_string().fmt(f),
             Self::Float(arg0) => arg0.to_string().fmt(f),
             Self::Boolean { value, .. } => value.fmt(f),
-            Self::ARRAY(v) => v.fmt(f),
+            Self::ARRAY(v) => v.iter().collect::<Vec<_>>().fmt(f),
             Self::Null { .. } => "Null".fmt(f),
         }
     }
