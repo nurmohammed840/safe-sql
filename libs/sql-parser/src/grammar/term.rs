@@ -10,7 +10,7 @@ pub enum Term {
 
 impl Parse for Term {
     fn parse(input: ParseStream) -> Result<Self> {
-        let parsed_expr = input.step(|c| {
+        let parse_group_expr = input.step(|c| {
             let (tt, rest) = c.token_tree().ok_or(c.error("expected tokens"))?;
             if let TokenTree::Group(g) = tt {
                 if let Delimiter::Parenthesis = g.delimiter() {
@@ -21,16 +21,22 @@ impl Parse for Term {
             }
             Err(c.error("continue parsing..."))
         });
-        if let Ok(expr) = parsed_expr {
+
+        if let Ok(expr) = parse_group_expr {
             return Ok(expr);
         }
-        let fork = input.fork();
-        if let Ok(v) = fork.parse::<Value>() {
-            input.advance_to(&fork);
+        if input
+            .cursor()
+            .literal()
+            .is_some_and(|(v, _)| v.to_string().starts_with("c\""))
+        {
+            return Ok(Term::Column(input.parse()?));
+        }
+        
+        if let Ok(v) = input.parse() {
             return Ok(Term::Value(v));
         }
-        if let Ok(v) = fork.parse() {
-            input.advance_to(&fork);
+        if let Ok(v) = input.parse() {
             return Ok(Term::Column(v));
         }
         Err(input.error("invalid `Term`"))

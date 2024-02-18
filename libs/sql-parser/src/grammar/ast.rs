@@ -224,11 +224,12 @@ impl fmt::Debug for Condition {
 
 impl<N: fmt::Debug, T: fmt::Debug, Operator: fmt::Debug> fmt::Debug for Ast<N, T, Operator> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.right {
+        match &self.right {
             None => self.left.fmt(f),
-            Some(ref right) => f
+            Some((operator, right)) => f
                 .debug_struct(&format!("{:?}", self.name))
                 .field("left", &self.left)
+                .field("operator", &operator)
                 .field("right", &right)
                 .finish(),
         }

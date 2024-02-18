@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use super::*;
 
 pub enum Name {
@@ -5,30 +7,37 @@ pub enum Name {
     Ident(Ident),
     /// Quoted names are case sensitive. and can contain spaces. There is no maximum name length.
     /// Two double quotes can be used to create a single double quote inside an identifier.
-    String(LitStr),
+    String(Literal),
 }
 
-impl Name {
-    // pub fn to_string(&self) -> String {
-    //     match self {
-    //         Name::Ident(a) => a.to_string(),
-    //         Name::String(s) => s.value(),
-    //     }
-    // }
+impl Display for Name {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Name::Ident(a) => f.write_str(&a.to_string()),
+            Name::String(s) => f.write_str(&s.to_string()),
+        }
+    }
 }
 
 impl Parse for Name {
     fn parse(input: ParseStream) -> Result<Self> {
+        let err_msg = "expected `Name`";
         input.step(|c| {
-            let (tt, rest) = c.token_tree().ok_or(c.error("invalid `Name`"))?;
+            let (tt, rest) = c.token_tree().ok_or(c.error(err_msg))?;
             let name = match tt {
                 TokenTree::Ident(v) => Name::Ident(v),
                 TokenTree::Literal(v) => {
-                    let mut s = TokenStream::new();
-                    s.append(v);
-                    Name::String(syn::parse2::<LitStr>(s)?)
+                    if !v
+                        .to_string()
+                        .as_bytes()
+                        .first()
+                        .is_some_and(|ch| matches!(ch, b'c' | b'"'))
+                    {
+                        return Err(Error::new(v.span(), "invalid `Name`"));
+                    }
+                    Name::String(v)
                 }
-                tt => return Err(Error::new(tt.span(), "expected `Name`")),
+                tt => return Err(Error::new(tt.span(), err_msg)),
             };
             Ok((name, rest))
         })
@@ -37,9 +46,6 @@ impl Parse for Name {
 
 impl std::fmt::Debug for Name {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Ident(arg0) => arg0.fmt(f),
-            Self::String(arg0) => arg0.value().fmt(f),
-        }
+        f.write_str(&self.to_string())
     }
 }
