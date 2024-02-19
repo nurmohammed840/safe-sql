@@ -1,3 +1,5 @@
+use crate::*;
+
 #[cfg(test)]
 pub mod test {
     #[macro_export]
@@ -6,6 +8,17 @@ pub mod test {
     }
 
     pub(crate) use syntex;
+}
+
+pub fn parse_keyword_if_matched(input: ParseStream, kw: &str) -> Result<Ident> {
+    input.step(|c| {
+        let err = input.error(format!("expected keyword: `{kw}`"));
+        let (keyword, rest) = c.ident().ok_or(err.clone())?;
+        if !keyword.to_string().eq_ignore_ascii_case(kw) {
+            return Err(err);
+        }
+        Ok((keyword, rest))
+    })
 }
 
 /// See:

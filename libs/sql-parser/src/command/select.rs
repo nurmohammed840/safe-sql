@@ -1,7 +1,8 @@
-use crate::*;
 use self::grammar::Name;
+use crate::*;
 use grammar::ast::OrExpr;
 use grammar::Column;
+use utils::parse_keyword_if_matched;
 
 pub enum SelectExpr {
     WildCard {
@@ -27,14 +28,14 @@ pub enum SelectFilter {
 }
 
 #[derive(Debug)]
-pub struct SELECT {
+pub struct Select {
     pub select_kw: Ident,
     pub filter: SelectFilter,
     pub exprs: Vec<SelectExpr>,
     pub from_kw: Ident,
 }
 
-impl Parse for SELECT {
+impl Parse for Select {
     fn parse(input: ParseStream) -> Result<Self> {
         let select_kw = parse_keyword_if_matched(input, "SELECT")?;
         let filter = input.parse()?;
@@ -54,17 +55,6 @@ impl Parse for SELECT {
             from_kw,
         })
     }
-}
-
-pub(crate) fn parse_keyword_if_matched(input: ParseStream, kw: &str) -> Result<Ident> {
-    input.step(|c| {
-        let err = input.error(format!("expected keyword: `{kw}`"));
-        let (keyword, rest) = c.ident().ok_or(err.clone())?;
-        if !keyword.to_string().eq_ignore_ascii_case(kw) {
-            return Err(err);
-        }
-        Ok((keyword, rest))
-    })
 }
 
 impl Parse for SelectExpr {
@@ -151,7 +141,7 @@ pub(crate) mod tests {
     #[test]
     fn test_name() {
         // EXCEPT
-        let g: Result<SELECT> = utils::test::syntex! {
+        let g: Result<Select> = utils::test::syntex! {
             SELECT adad as awd, adad FROM
         };
         println!("{:#?}", g.unwrap());

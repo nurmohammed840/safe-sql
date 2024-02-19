@@ -1,5 +1,5 @@
-use super::{ast::OrExpr, column::Column, value::Value, Name};
 use crate::*;
+use super::{ast::OrExpr, value::Value, Column, Name};
 
 #[derive(Debug)]
 pub enum Term {
@@ -32,7 +32,6 @@ impl Parse for Term {
         {
             return Ok(Term::Column(input.parse()?));
         }
-        
         if let Ok(v) = input.parse() {
             return Ok(Term::Value(v));
         }

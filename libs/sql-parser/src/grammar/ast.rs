@@ -42,7 +42,7 @@ pub enum Condition {
     Not(Box<Condition>),
 }
 
-mod ast_name {
+mod ast_kind {
     #[derive(Debug, Default)]
     pub struct Factorial;
     #[derive(Debug, Default)]
@@ -55,14 +55,14 @@ mod ast_name {
     pub struct OrExpr;
 }
 
-pub type Factorial = Ast<ast_name::Factorial, Term, Factor>;
-pub type Arithmetic = Ast<ast_name::Arithmetic, Factorial, Sign>;
-pub type Operand = Ast<ast_name::Operand, Arithmetic, ConcatOperator>;
-pub type AndExpr = Ast<ast_name::AndExpr, Condition, AndOperator>;
-pub type OrExpr = Ast<ast_name::OrExpr, AndExpr, OrOperator>;
+pub type Factorial = Ast<ast_kind::Factorial, Term, Factor>;
+pub type Arithmetic = Ast<ast_kind::Arithmetic, Factorial, Sign>;
+pub type Operand = Ast<ast_kind::Operand, Arithmetic, ConcatOperator>;
+pub type AndExpr = Ast<ast_kind::AndExpr, Condition, AndOperator>;
+pub type OrExpr = Ast<ast_kind::OrExpr, AndExpr, OrOperator>;
 
 pub struct Ast<N, T, Operator> {
-    pub name: N,
+    pub kind: N,
     pub left: T,
     pub right: Option<(Operator, Box<Self>)>,
 }
@@ -195,7 +195,7 @@ impl<N: Default, T: Parse, O: Parse> Parse for Ast<N, T, O> {
     fn parse(input: ParseStream) -> Result<Self> {
         let left = input.parse()?;
         Ok(Self {
-            name: N::default(),
+            kind: N::default(),
             left,
             right: if let Ok(o) = O::parse(input) {
                 Some((o, input.parse()?))
@@ -227,7 +227,7 @@ impl<N: fmt::Debug, T: fmt::Debug, Operator: fmt::Debug> fmt::Debug for Ast<N, T
         match &self.right {
             None => self.left.fmt(f),
             Some((operator, right)) => f
-                .debug_struct(&format!("{:?}", self.name))
+                .debug_struct(&format!("{:?}", self.kind))
                 .field("left", &self.left)
                 .field("operator", &operator)
                 .field("right", &right)
