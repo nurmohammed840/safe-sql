@@ -42,24 +42,19 @@ pub enum Condition {
     Not(Box<Condition>),
 }
 
-mod ast_kind {
-    #[derive(Debug, Default)]
-    pub struct Factorial;
-    #[derive(Debug, Default)]
-    pub struct Arithmetic;
-    #[derive(Debug, Default)]
-    pub struct Operand;
-    #[derive(Debug, Default)]
-    pub struct AndExpr;
-    #[derive(Debug, Default)]
-    pub struct OrExpr;
+macro_rules! ast {
+    ($($a: ident<$b: ident, $c: ident>)*) => {
+        pub mod ast_kind { $(#[derive(Debug, Default)] pub struct $a;)* }
+        $(pub type $a = Ast<ast_kind::$a, $b, $c>;)*
+    };
 }
-
-pub type Factorial = Ast<ast_kind::Factorial, Term, Factor>;
-pub type Arithmetic = Ast<ast_kind::Arithmetic, Factorial, Sign>;
-pub type Operand = Ast<ast_kind::Operand, Arithmetic, ConcatOperator>;
-pub type AndExpr = Ast<ast_kind::AndExpr, Condition, AndOperator>;
-pub type OrExpr = Ast<ast_kind::OrExpr, AndExpr, OrOperator>;
+ast! {
+    Factorial<Term, Factor>
+    Arithmetic<Factorial, Sign>
+    Operand<Arithmetic, ConcatOperator>
+    AndExpr<Condition, AndOperator>
+    OrExpr<AndExpr, OrOperator>
+}
 
 pub struct Ast<N, T, Operator> {
     pub kind: N,

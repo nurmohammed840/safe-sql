@@ -44,7 +44,7 @@ impl Parse for InsertKind {
         }
         if kind.eq_ignore_ascii_case("DEFAULT") {
             parse_keyword_if_matched(input, "VALUES")?;
-            return Ok(Self::DefaultValues(kw));
+            return Ok(Self::DefaultValues(kw))
         }
         todo!()
     }
