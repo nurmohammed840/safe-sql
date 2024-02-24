@@ -1,5 +1,5 @@
-use crate::*;
 use super::{ast::OrExpr, value::Value, Column, Name};
+use crate::*;
 
 #[derive(Debug)]
 pub enum Term {
@@ -28,7 +28,7 @@ impl Parse for Term {
         if input
             .cursor()
             .literal()
-            .is_some_and(|(v, _)| v.to_string().starts_with("c\""))
+            .is_some_and(|(v, _)| v.to_string().starts_with("r\""))
         {
             return Ok(Term::Column(input.parse()?));
         }

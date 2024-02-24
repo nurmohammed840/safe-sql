@@ -2,10 +2,12 @@
 /// - https://forcedotcom.github.io/phoenix/
 /// - https://en.wikipedia.org/wiki/SQL_syntax
 pub mod command;
+pub mod function;
 pub mod grammar;
 
-pub(crate) mod utils;
+pub mod utils;
 
+use proc_macro2::Literal;
 use proc_macro2::{Delimiter, Ident, Span, TokenTree};
 use std::fmt;
 use syn::{
@@ -14,6 +16,5 @@ use syn::{
     parse::{discouraged::Speculative, Parse, ParseStream, Parser},
     punctuated::Punctuated,
     token::Paren,
-    Error, LitFloat, LitInt, LitStr, Result, Token
+    Error, LitFloat, LitInt, LitStr, Result, Token,
 };
-use proc_macro2::Literal;

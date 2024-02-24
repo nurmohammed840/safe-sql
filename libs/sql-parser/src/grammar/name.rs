@@ -2,6 +2,7 @@ use crate::*;
 use std::fmt::Display;
 use std::fmt::Write;
 
+#[derive(Clone)]
 pub enum Name {
     /// Unquoted names are not case sensitive. There is no maximum name length
     Ident(Ident),
@@ -10,13 +11,22 @@ pub enum Name {
     String(Literal),
 }
 
+impl Name {
+    pub fn span(&self) -> Span {
+        match self {
+            Name::Ident(v) => v.span(),
+            Name::String(v) => v.span(),
+        }
+    }
+}
+
 pub struct Column<T> {
     pub schema_name: Option<Name>,
     pub table_name: Option<Name>,
     pub alias: T,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TableName {
     pub schema_name: Option<Name>,
     pub table_name: Name,
@@ -31,7 +41,6 @@ fn get_name(input: ParseStream) -> Result<Option<Name>> {
     Ok(Some(name))
 }
 
-
 impl Parse for Name {
     fn parse(input: ParseStream) -> Result<Self> {
         let err_msg = "expected `Name`";
@@ -44,7 +53,7 @@ impl Parse for Name {
                         .to_string()
                         .as_bytes()
                         .first()
-                        .is_some_and(|ch| matches!(ch, b'c' | b'"'))
+                        .is_some_and(|ch| matches!(ch, b'r' | b'"'))
                     {
                         return Err(Error::new(v.span(), "invalid `Name`"));
                     }
@@ -56,7 +65,6 @@ impl Parse for Name {
         })
     }
 }
-
 
 impl<T: Parse> Parse for Column<T> {
     fn parse(input: ParseStream) -> Result<Self> {
@@ -122,7 +130,7 @@ mod tests {
 
     #[test]
     fn parse_column() {
-        let _: Column<Name> = syntex! { c"schema_name"."table_alias"."alias" }.unwrap();
+        let _: Column<Name> = syntex! { r"schema_name"."table_alias"."alias" }.unwrap();
         let _: Column<Name> = syntex! { field }.unwrap();
         let _: Column<Name> = syntex! { "document".field }.unwrap();
     }

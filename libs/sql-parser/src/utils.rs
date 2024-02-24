@@ -24,7 +24,7 @@ pub fn parse_keyword_if_matched(input: ParseStream, kw: &str) -> Result<Ident> {
 /// See:
 /// - https://youtu.be/d-Eq6x1yssU?si=YW94NY_vSc_KXrSb
 /// - https://en.wikipedia.org/wiki/Levenshtein_distance
-pub fn _levenshtein_distance(a: &str, b: &str) -> usize {
+pub fn levenshtein_distance(a: &str, b: &str) -> usize {
     let m = a.len();
     let n = b.len();
     let mut dp = vec![vec![0; n + 1]; m + 1];
@@ -44,4 +44,3 @@ pub fn _levenshtein_distance(a: &str, b: &str) -> usize {
     }
     dp[m][n]
 }
-

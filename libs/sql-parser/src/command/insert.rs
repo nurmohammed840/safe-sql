@@ -2,11 +2,22 @@ use crate::{utils::parse_keyword_if_matched, *};
 use grammar::{ast::OrExpr, Name, TableName};
 
 /// Ref: https://www.h2database.com/html/commands.html#insert
-pub struct InsertInto {
+pub struct Insert {
     pub kw: (Ident, Ident),
     pub table_name: TableName,
     pub column_name: Punctuated<Name, Token![,]>,
     pub values: InsertKind,
+}
+
+pub enum Row {
+    InsertExpr(InsertExpr),
+    Row(Punctuated<InsertExpr, Token![,]>),
+}
+
+#[derive(Debug)]
+pub enum InsertExpr {
+    Default,
+    Insert(OrExpr),
 }
 
 #[derive(Debug)]
@@ -24,11 +35,12 @@ pub enum InsertKind {
 
 impl Parse for InsertKind {
     fn parse(input: ParseStream) -> Result<Self> {
-        let kw: Ident = input.parse()?;
+        let err_msg = input.error("expected: VALUES(<expr>, ..) | VALUES <expr> | DEFAULT VALUES");
+        let kw: Ident = input.parse().map_err(|_| err_msg.clone())?;
         let kind = kw.to_string();
         if kind.eq_ignore_ascii_case("VALUES") {
             return Ok(Self::Values {
-                kw: parse_keyword_if_matched(input, "VALUES")?,
+                kw,
                 rows: {
                     let mut rows = vec![];
                     while !input.cursor().eof() {
@@ -44,21 +56,10 @@ impl Parse for InsertKind {
         }
         if kind.eq_ignore_ascii_case("DEFAULT") {
             parse_keyword_if_matched(input, "VALUES")?;
-            return Ok(Self::DefaultValues(kw))
+            return Ok(Self::DefaultValues(kw));
         }
-        todo!()
+        Err(err_msg)
     }
-}
-
-pub enum Row {
-    InsertExpr(InsertExpr),
-    Row(Punctuated<InsertExpr, Token![,]>),
-}
-
-#[derive(Debug)]
-pub enum InsertExpr {
-    Default,
-    Insert(OrExpr),
 }
 
 impl Parse for InsertExpr {
@@ -83,7 +84,7 @@ impl Parse for Row {
     }
 }
 
-impl Parse for InsertInto {
+impl Parse for Insert {
     fn parse(input: ParseStream) -> Result<Self> {
         Ok(Self {
             kw: (
@@ -118,7 +119,7 @@ impl fmt::Debug for Row {
     }
 }
 
-impl fmt::Debug for InsertInto {
+impl fmt::Debug for Insert {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("InsertInto")
             .field("kw", &self.kw)
@@ -136,7 +137,7 @@ pub(crate) mod tests {
     #[test]
     fn test_name() {
         // EXCEPT
-        let g: Result<InsertInto> = utils::test::syntex! {
+        let g: Result<Insert> = utils::test::syntex! {
             INSERT INTO test (id, age) VALUES (1, "Hello")
         };
         println!("{:#?}", g);

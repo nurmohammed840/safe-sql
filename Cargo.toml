@@ -1,12 +1,15 @@
 [workspace]
-members = [ "libs/sql-parser","libs/sqlx-macros"]
+members = ["libs/sql-parser", "libs/sql-analyzer", "test"]
 
 [package]
-name = "pg_sqlx"
+name = "safe-sql"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+proc-macro = true
+
 [dependencies]
-tokio = { version = "1.36.0", features = ["full"] }
-tokio-postgres = "0.7.10"
-sqlx-macros = { path = "libs/sqlx-macros" }
+syn = "2"
+sql-parser = { path = "libs/sql-parser" }
+sql-analyzer = { path = "libs/sql-analyzer" }

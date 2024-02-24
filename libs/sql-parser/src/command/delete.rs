@@ -28,7 +28,6 @@ impl Parse for Delete {
     }
 }
 
-
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -37,7 +36,7 @@ pub(crate) mod tests {
     fn test_name() {
         // EXCEPT
         let g: Result<Delete> = utils::test::syntex! {
-            DELETE FROM test 
+            DELETE FROM test
             WHERE
                 id = 2 AND name = 353
         };
