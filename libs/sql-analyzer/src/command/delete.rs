@@ -14,19 +14,21 @@ impl SqlAnalyzer for Delete {
     }
 }
 
-struct AnalyseDeleteExpr<'a> {
-    ctx: &'a mut Ctx,
-    table: &'a Table,
+struct AnalyseDeleteExpr<'c, 's> {
+    ctx: &'c mut Ctx<'s>,
+    table: &'s Table,
 }
 
-impl<'a> ExprAnalyser<'a> for AnalyseDeleteExpr<'a> {
+impl ExprAnalyser for AnalyseDeleteExpr<'_, '_> {
     fn analyse_term(&mut self, term: &Term) {
         match term {
             Term::Value(_) => {}
             Term::Column(name) => {
                 self.ctx.get_column(self.table, &name.alias);
             }
+            Term::Func(_) => {},
             Term::OrExpr(expr) => self.analyse_or_expr(expr),
+            
         }
     }
 }

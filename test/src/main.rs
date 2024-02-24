@@ -15,6 +15,6 @@ fn main() {
     sql! {
         DELETE FROM User
         WHERE
-            id AND (id * ( 6 * 8 + (id * age)))
+            id AND (id * (6 * 8 + (id * age))) 
     };
 }

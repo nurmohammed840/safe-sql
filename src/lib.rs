@@ -5,7 +5,7 @@ use sql_parser::command::Command;
 pub fn sql(input: TokenStream) -> TokenStream {
     match syn::parse::<Command>(input) {
         Ok(_input) => {
-            let mut errs = sql_analyzer::analyse_command(_input).unwrap().into_iter();
+            let mut errs = sql_analyzer::analyse_command(_input).into_iter();
             if let Some((span, message)) = errs.next() {
                 let mut err = syn::Error::new(span, message);
                 for e in errs {

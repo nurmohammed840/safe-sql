@@ -1,4 +1,5 @@
 use self::grammar::Name;
+use self::utils::Many;
 use crate::*;
 use grammar::ast::OrExpr;
 use grammar::Column;
@@ -31,28 +32,17 @@ pub enum SelectFilter {
 pub struct Select {
     pub select_kw: Ident,
     pub filter: SelectFilter,
-    pub exprs: Vec<SelectExpr>,
+    pub exprs: Many<SelectExpr>,
     pub from_kw: Ident,
 }
 
 impl Parse for Select {
     fn parse(input: ParseStream) -> Result<Self> {
-        let select_kw = parse_keyword_if_matched(input, "SELECT")?;
-        let filter = input.parse()?;
-        let mut exprs = vec![];
-        while !input.cursor().eof() {
-            exprs.push(input.parse()?);
-            if !input.peek(Token![,]) {
-                break;
-            }
-            input.parse::<Token![,]>()?;
-        }
-        let from_kw = parse_keyword_if_matched(input, "FROM")?;
         Ok(Self {
-            select_kw,
-            filter,
-            exprs,
-            from_kw,
+            select_kw: parse_keyword_if_matched(input, "SELECT")?,
+            filter: input.parse()?,
+            exprs: input.parse()?,
+            from_kw: parse_keyword_if_matched(input, "FROM")?,
         })
     }
 }

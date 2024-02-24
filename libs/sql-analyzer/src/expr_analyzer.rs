@@ -1,6 +1,6 @@
 use sql_parser::grammar::{ast::*, Term};
 
-pub trait ExprAnalyser<'a> {
+pub trait ExprAnalyser {
     fn analyse_or_expr(&mut self, expr: &OrExpr) {
         self.analyse_and_expr(&expr.left);
         if let Some((_, expr)) = &expr.right {

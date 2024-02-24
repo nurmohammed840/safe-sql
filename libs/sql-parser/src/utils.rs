@@ -1,3 +1,5 @@
+use std::ops;
+
 use crate::*;
 
 #[cfg(test)]
@@ -9,6 +11,34 @@ pub mod test {
 
     pub(crate) use syntex;
 }
+
+#[derive(Debug)]
+pub struct Many<T> {
+    pub values: Vec<T>
+}
+
+impl<T: Parse> Parse for Many<T> {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut values = vec![];
+        while !input.cursor().eof() {
+            values.push(input.parse()?);
+            if !input.peek(Token![,]) {
+                break;
+            }
+            input.parse::<Token![,]>()?;
+        }
+        Ok(Many { values })
+    }
+}
+
+impl<T: ops::Deref> ops::Deref for Many<T> {
+    type Target = Vec<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.values
+    }
+}
+
 
 pub fn parse_keyword_if_matched(input: ParseStream, kw: &str) -> Result<Ident> {
     input.step(|c| {

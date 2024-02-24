@@ -24,7 +24,7 @@ impl SchemaInfo {
     }
 }
 
-pub enum DataType {
+pub enum _DataType {
     /// TRUE, FALSE, UNKNOWN (NULL)
     Boolean,
     /// `i8`
@@ -98,7 +98,6 @@ impl SchemaInfo {
             column.dtd_identifier = row.get(8);
             column.character_maximum_length = row.get(9);
         }
-        println!("{:#?}", schemas);
         Ok(Self(schemas))
     }
 }

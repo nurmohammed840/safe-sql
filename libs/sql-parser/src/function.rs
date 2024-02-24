@@ -1,16 +1,15 @@
 #![allow(non_camel_case_types)]
 use crate::*;
-use grammar::ast::OrExpr;
+use grammar::ast::{Factor, OrExpr};
+use utils::Many;
 
 macro_rules! define_function {
     [
-        $(
-            $ty: ident {
-                $($name: ident ( $($arg: ty),* )),*
-            }
-        )*
+        $ty: ident {
+            $(  $name: ident   $(| $alies: ident)*  (  $($arg: ty),*   )  ),*
+        }
     ] => {
-        $(pub enum $ty { $($name ($($arg),*)),* }
+        pub enum $ty { $($name ($($arg),*)),* }
         impl Parse for $ty {
             fn parse(input: ParseStream) -> Result<Self> {
                 input.step(|c| {
@@ -22,31 +21,32 @@ macro_rules! define_function {
                     }
                     let stream = group.stream();
                     let parse = |i: ParseStream| Ok(match name.to_string().to_uppercase().as_str() {
-                        $(stringify!($name) => Self::$name($(i.parse::<$arg>()?),*),)*
+                        $(stringify!($name) $(| stringify!($alies))* => Self::$name($(i.parse::<$arg>()?),*),)*
                         _ => return Err(c.error("unknown function")),
                     });
                     Ok((parse.parse2(stream)?, rest))
                 })
             }
-        })*
+        }
     };
 }
 
 define_function! {
-    NumericFunction {
-        ABS(LitFloat),
-        ACOS(LitFloat),
-        ASIN(LitFloat),
-        ATAN(LitFloat),
-        COS(LitFloat),
-        COSH(LitFloat),
-        COT(LitFloat),
-        SIN(LitFloat),
-        SINH(LitFloat),
-        TAN(LitFloat),
-        TANH(LitFloat),
+    Function {
+        // # Numeric Function
+        ABS(Factor),
+        ACOS(Factor),
+        ASIN(Factor),
+        ATAN(Factor),
+        COS(Factor),
+        COSH(Factor),
+        COT(Factor),
+        SIN(Factor),
+        SINH(Factor),
+        TAN(Factor),
+        TANH(Factor),
 
-        ATAN2(LitFloat, LitFloat),
+        ATAN2(Factor, Factor),
 
         BITAND(OrExpr, OrExpr),
         BITOR(OrExpr, OrExpr),
@@ -55,90 +55,92 @@ define_function! {
         BITNAND(OrExpr, OrExpr),
         BITNOR(OrExpr, OrExpr),
         BITXNOR(OrExpr, OrExpr),
-        BITGET(OrExpr, LitFloat), //
+        BITGET(OrExpr, LitInt),
         BITCOUNT(OrExpr),
 
-        LSHIFT(OrExpr, LitFloat),
-        RSHIFT(OrExpr, LitFloat),
-        ULSHIFT(OrExpr, LitFloat),
-        URSHIFT(OrExpr, LitFloat),
+        LSHIFT(OrExpr, LitInt),
+        RSHIFT(OrExpr, LitInt),
+        ULSHIFT(OrExpr, LitInt),
+        URSHIFT(OrExpr, LitInt),
 
-        ROTATELEFT(OrExpr, LitFloat),
-        ROTATERIGHT(OrExpr, LitFloat),
+        ROTATELEFT(OrExpr, LitInt),
+        ROTATERIGHT(OrExpr, LitInt),
 
-        MOD(LitFloat, LitFloat),
+        MOD(Factor, Factor),
 
-        CEIL(LitFloat),
-        DEGREES(LitFloat),
-        EXP(LitFloat),
-        FLOOR(LitFloat),
-        LN(LitFloat),
+        CEIL | CEILING(Factor),
+        DEGREES(Factor),
+        EXP(Factor),
+        FLOOR(Factor),
+        LN(Factor),
 
-        LOG(LitFloat, LitFloat),
-        LOG10(LitFloat),
+        LOG(Factor, Factor),
+        LOG10(Factor),
 
         ORA_HASH(OrExpr),
-        RADIANS(LitFloat),
-        SQRT(LitFloat),
+        RADIANS(LitInt),
+        SQRT(Factor),
         PI(),
-        POWER(LitFloat, LitFloat),
-        RAND(LitFloat),
-        RANDOM_UUID(),
-        ROUND(LitFloat),
-        SECURE_RAND(LitFloat),
-        SIGN(LitFloat),
+        POWER(Factor, Factor),
+        RAND | RANDOM(Factor),
+        RANDOM_UUID | UUID(),
+        ROUND(Factor),
+        SECURE_RAND(LitInt),
+        SIGN(Factor),
 
-        ENCRYPT(),
-        DECRYPT(),
-        HASH(),
-        TRUNC(),
-        COMPRESS(),
-        EXPAND(),
-        ZERO()
-    }
-    StringFunction {
+        // ENCRYPT(..),
+        // DECRYPT(..),
+        // HASH(..),
+        // TRUNC | TRUNCATE(..),
+        // COMPRESS(..),
+        // EXPAND(..),
+        // ZERO(..)
+
+        // # String Function
+
         ASCII(LitStr),
-        BIT_LENGTH(),
-        CHAR_LENGTH(),
-        OCTET_LENGTH(),
-        CHAR(),
-        CONCAT(),
-        CONCAT_WS(),
-        DIFFERENCE(),
-        HEXTORAW(),
-        RAWTOHEX(),
-        INSERT(),
-        LOWER(),
-        UPPER(),
-        LEFT(),
-        RIGHT(),
-        LOCATE(),
-        LPAD(),
-        RPAD(),
-        LTRIM(),
-        RTRIM(),
-        BTRIM(),
-        TRIM(),
-        REGEXP_REPLACE(),
-        REGEXP_LIKE(),
-        REGEXP_SUBSTR(),
-        REPEAT(),
-        REPLACE(),
-        SOUNDEX(),
-        SPACE(),
-        STRINGDECODE(),
-        STRINGENCODE(),
-        STRINGTOUTF8(),
-        SUBSTRING(),
-        UTF8TOSTRING(),
-        QUOTE_IDENT(),
-        XMLATTR(),
-        XMLNODE(),
-        XMLCOMMENT(),
-        XMLCDATA(),
-        XMLSTARTDOC(),
-        XMLTEXT(),
-        TO_CHAR(),
-        TRANSLATE()
+        // BIT_LENGTH(),
+        CHAR_LENGTH | CHARACTER_LENGTH | LENGTH(LitStr),
+        // OCTET_LENGTH(),
+        CHAR | CHR(LitInt),
+        CONCAT(Many<LitStr>),
+
+        // CONCAT_WS(),
+        DIFFERENCE(LitStr, LitStr),
+        HEXTORAW(LitStr),
+        // RAWTOHEX(),
+        // INSERT(),
+        LOWER | LCASE(LitStr),
+        UPPER | UCASE(LitStr),
+        LEFT(LitStr, LitInt),
+        RIGHT(LitStr, LitInt),
+        // LOCATE(),
+        // LPAD(),
+        // RPAD(),
+        // LTRIM(),
+        // RTRIM(),
+        // BTRIM(),
+        // TRIM(),
+        // REGEXP_REPLACE(),
+        // REGEXP_LIKE(),
+        // REGEXP_SUBSTR(),
+        REPEAT(LitStr, LitInt),
+        // REPLACE(),
+        SOUNDEX(LitStr),
+        SPACE(LitInt)
+        // STRINGDECODE(),
+        // STRINGENCODE(),
+        // STRINGTOUTF8(),
+        // SUBSTRING(),
+        // UTF8TOSTRING(),
+        // QUOTE_IDENT(),
+        // XMLATTR(),
+        // XMLNODE(),
+        // XMLCOMMENT(),
+        // XMLCDATA(),
+        // XMLSTARTDOC(),
+        // XMLTEXT(),
+        // TO_CHAR(),
+        // TRANSLATE()
     }
 }
