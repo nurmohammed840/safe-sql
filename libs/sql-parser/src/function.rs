@@ -1,30 +1,43 @@
 #![allow(non_camel_case_types)]
 use crate::*;
-use grammar::ast::{Factor, OrExpr};
+use grammar::ast::{Arithmetic, OrExpr};
 use utils::Many;
+
+macro_rules! parse_arg {
+    [$name: ident, $i: ident,] => {
+        Self::$name()
+    };
+    [$name: ident, $i: ident, $_1: ty] => {
+        Self::$name($i.parse()?)
+    };
+    [$name: ident, $i: ident, $_1: ty, $_2: ty] => {
+        {
+            let a = $i.parse()?;
+            let _ = $i.parse::<Token![,]>()?;
+            let b = $i.parse()?;
+            Self::$name(a, b)
+        }
+    }
+}
 
 macro_rules! define_function {
     [
         $ty: ident {
-            $(  $name: ident   $(| $alies: ident)*  (  $($arg: ty),*   )  ),*
+            $(  $name: ident   $(| $alies: ident)*  (  $($arg: tt)*   )  ),*
         }
     ] => {
-        pub enum $ty { $($name ($($arg),*)),* }
+        pub const SQL_FUNC_NAMES: &[&str] = &[$(stringify!($name)),* ];
+        // #[derive(Debug)]
+        pub enum $ty { $($name ($($arg)*)),* }
         impl Parse for $ty {
             fn parse(input: ParseStream) -> Result<Self> {
-                input.step(|c| {
-                    let (name, rest) = c.ident().ok_or(c.error("expated math function"))?;
-                    let (tt, rest) = rest.token_tree().ok_or(c.error("unexpated eof"))?;
-                    let TokenTree::Group(group) = tt else { return Err(c.error("exprcted `(..)`")); };
-                    if group.delimiter() != Delimiter::Parenthesis {
-                        return Err(c.error("exprcted `(..)`"));
-                    }
-                    let stream = group.stream();
-                    let parse = |i: ParseStream| Ok(match name.to_string().to_uppercase().as_str() {
-                        $(stringify!($name) $(| stringify!($alies))* => Self::$name($(i.parse::<$arg>()?),*),)*
-                        _ => return Err(c.error("unknown function")),
-                    });
-                    Ok((parse.parse2(stream)?, rest))
+                let fn_name = input.parse::<Ident>()?.to_string();
+                let i;
+                parenthesized!(i in input);
+                
+                Ok(match fn_name.to_uppercase().as_str() {
+                    $(stringify!($name) $(| stringify!($alies))* => parse_arg!($name, i, $($arg)*),)*
+                    kw => return Err(input.error(format!("unknown function: `{fn_name}` \nhint: {}", utils::suggest(kw, SQL_FUNC_NAMES.iter())))),
                 })
             }
         }
@@ -34,19 +47,19 @@ macro_rules! define_function {
 define_function! {
     Function {
         // # Numeric Function
-        ABS(Factor),
-        ACOS(Factor),
-        ASIN(Factor),
-        ATAN(Factor),
-        COS(Factor),
-        COSH(Factor),
-        COT(Factor),
-        SIN(Factor),
-        SINH(Factor),
-        TAN(Factor),
-        TANH(Factor),
+        ABS(Arithmetic),
+        ACOS(Arithmetic),
+        ASIN(Arithmetic),
+        ATAN(Arithmetic),
+        COS(Arithmetic),
+        COSH(Arithmetic),
+        COT(Arithmetic),
+        SIN(Arithmetic),
+        SINH(Arithmetic),
+        TAN(Arithmetic),
+        TANH(Arithmetic),
 
-        ATAN2(Factor, Factor),
+        ATAN2(Arithmetic, Arithmetic),
 
         BITAND(OrExpr, OrExpr),
         BITOR(OrExpr, OrExpr),
@@ -66,27 +79,27 @@ define_function! {
         ROTATELEFT(OrExpr, LitInt),
         ROTATERIGHT(OrExpr, LitInt),
 
-        MOD(Factor, Factor),
+        MOD(Arithmetic, Arithmetic),
 
-        CEIL | CEILING(Factor),
-        DEGREES(Factor),
-        EXP(Factor),
-        FLOOR(Factor),
-        LN(Factor),
+        CEIL | CEILING(Arithmetic),
+        DEGREES(Arithmetic),
+        EXP(Arithmetic),
+        FLOOR(Arithmetic),
+        LN(Arithmetic),
 
-        LOG(Factor, Factor),
-        LOG10(Factor),
+        LOG(Arithmetic, Arithmetic),
+        LOG10(Arithmetic),
 
         ORA_HASH(OrExpr),
         RADIANS(LitInt),
-        SQRT(Factor),
+        SQRT(Arithmetic),
         PI(),
-        POWER(Factor, Factor),
-        RAND | RANDOM(Factor),
+        POWER(Arithmetic, Arithmetic),
+        RAND | RANDOM(Arithmetic),
         RANDOM_UUID | UUID(),
-        ROUND(Factor),
+        ROUND(Arithmetic),
         SECURE_RAND(LitInt),
-        SIGN(Factor),
+        SIGN(Arithmetic),
 
         // ENCRYPT(..),
         // DECRYPT(..),
@@ -144,3 +157,17 @@ define_function! {
         // TRANSLATE()
     }
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+
+//     #[test]
+//     fn test_name() {
+//         let g: Function = utils::test::syntex! {
+//             add(6 + 5)
+//         }
+//         .unwrap();
+//         println!("{:#?}", g);
+//     }
+// }

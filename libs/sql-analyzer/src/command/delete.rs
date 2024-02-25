@@ -26,9 +26,8 @@ impl ExprAnalyser for AnalyseDeleteExpr<'_, '_> {
             Term::Column(name) => {
                 self.ctx.get_column(self.table, &name.alias);
             }
-            Term::Func(_) => {},
+            Term::Func(_func) => {},
             Term::OrExpr(expr) => self.analyse_or_expr(expr),
-            
         }
     }
 }

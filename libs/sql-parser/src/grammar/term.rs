@@ -18,9 +18,9 @@ impl Parse for Term {
             parenthesized!(content in input);
             return Ok(Self::OrExpr(content.parse()?));
         }
-        
         if input.peek(Ident::peek_any) && input.peek2(token::Paren) {
-            return Ok(Self::Func(input.parse()?));
+            let func = Self::Func(input.parse()?);
+            return Ok(func);
         }
 
         if input
@@ -34,9 +34,11 @@ impl Parse for Term {
         if let Ok(v) = input.parse() {
             return Ok(Term::Value(v));
         }
-
-        Ok(Term::Column(input.parse()?))
-        // Err(input.error("invalid `Term`"))
+        if let Ok(v) = input.parse() {
+            return Ok(Term::Column(v));
+        }
+        // Ok(Term::Column(input.parse()?))
+        Err(input.error("invalid `Term`"))
     }
 }
 

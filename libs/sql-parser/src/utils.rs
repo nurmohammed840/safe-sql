@@ -39,6 +39,35 @@ impl<T: ops::Deref> ops::Deref for Many<T> {
     }
 }
 
+pub fn suggest<I>(input: &str, values: I) -> String
+where
+    I: Iterator,
+    I::Item: fmt::Display,
+{
+    let mut tree: Vec<_> = values
+        .map(|v| {
+            let val = v.to_string();
+            (levenshtein_distance(input, &val), val)
+        })
+        .collect();
+
+    tree.sort();
+    let mut values = tree.iter().map(|(_, b)| b).take(7);
+    let mut msg = String::new();
+
+    if let Some(v) = values.next() {
+        msg += "`";
+        msg += v;
+        msg += "`";
+    }
+    for v in values {
+        msg += ", `";
+        msg += v;
+        msg += "`";
+    }
+    msg
+}
+
 
 pub fn parse_keyword_if_matched(input: ParseStream, kw: &str) -> Result<Ident> {
     input.step(|c| {

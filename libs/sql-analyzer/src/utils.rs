@@ -2,37 +2,7 @@ use crate::{
     schema_info::{Column, SchemaInfo, Table},
     AnalyseError,
 };
-use sql_parser::{grammar::Name, utils::levenshtein_distance};
-use std::fmt::Display;
-
-pub fn suggest<I>(input: &str, values: I) -> String
-where
-    I: Iterator,
-    I::Item: Display,
-{
-    let mut tree: Vec<_> = values
-        .map(|v| {
-            let val = v.to_string();
-            (levenshtein_distance(input, &val), val)
-        })
-        .collect();
-
-    tree.sort();
-    let mut values = tree.iter().map(|(_, b)| b).take(5);
-    let mut msg = String::new();
-
-    if let Some(v) = values.next() {
-        msg += "`";
-        msg += v;
-        msg += "`";
-    }
-    for v in values {
-        msg += ", `";
-        msg += v;
-        msg += "`";
-    }
-    msg
-}
+use sql_parser::{grammar::Name, utils::suggest};
 
 pub fn get_table<'a>(info: &'a SchemaInfo, name: &Name) -> Result<&'a Table, AnalyseError> {
     let (name, span) = (name.to_string(), name.span());
