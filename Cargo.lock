@@ -546,6 +546,7 @@ dependencies = [
 name = "sql-analyzer"
 version = "0.1.0"
 dependencies = [
+ "log",
  "postgres",
  "sql-parser",
  "syn",

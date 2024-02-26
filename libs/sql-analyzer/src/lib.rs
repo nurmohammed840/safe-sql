@@ -5,7 +5,7 @@ mod utils;
 
 use schema_info::{Column, SchemaInfo, Table};
 use sql_parser::grammar::Name;
-use std::error::Error;
+use std::{env, error::Error};
 use syn::__private::Span;
 
 type AnalyseResult = Result<(), Box<dyn Error>>;
@@ -42,25 +42,35 @@ pub trait SqlAnalyzer {
 
 thread_local! {
     static SCHEMA_INFO: Option<SchemaInfo> = {
+        let path = env::var("CARGO_TARGET_DIR").map(|dir| dir + "/target/safe-sql.log").unwrap_or_else(|_| "./safe-sql.log".to_string());
+        let logger = utils::new_logger(path);
+        let _ = log::set_boxed_logger(Box::new(logger)).map(|()| log::set_max_level(log::LevelFilter::Info));
+
         match std::env::var("DATABASE_URL") {
             Ok(url) => match SchemaInfo::new(&url) {
                 Ok(info) => Some(info),
-                Err(_) => None
+                Err(err) => {
+                    log::error!("{err}");
+                    None
+                }
             },
-            Err(_) => None,
+            Err(err) => {
+                log::warn!("`DATABASE_URL` {err}");
+                None
+            },
         }
     };
 }
+
 pub fn analyse_command(c: sql_parser::command::Command) -> Vec<(Span, String)> {
     let mut errs = vec![];
-    SCHEMA_INFO.with(|v| match v {
-        Some(info) => {
+    SCHEMA_INFO.with(|v| {
+        if let Some(info) = v {
             let mut ctx = Ctx { info, errs: vec![] };
             if let Ok(_) = c.analyse(&mut ctx) {
                 errs = ctx.errs;
             }
         }
-        None => {}
     });
     errs
 }

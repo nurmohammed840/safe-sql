@@ -15,6 +15,6 @@ fn main() {
     sql! {
         DELETE FROM User
         WHERE
-            id AND (id * POWER(47, s))
+            id AND (id * Cos(47 + 55))
     };
 }

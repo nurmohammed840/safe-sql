@@ -7,3 +7,4 @@ edition = "2021"
 postgres = "0.19"
 syn = "2"
 sql-parser = { path = "../sql-parser" }
+log = { version = "0.4", features = ["std"] }
