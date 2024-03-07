@@ -2,7 +2,13 @@ use super::*;
 
 /// `||`
 #[derive(Debug)]
-pub struct ConcatOperator;
+pub struct ConcatOperator(Span);
+
+impl GetSpan for ConcatOperator {
+    fn get_span(&self) -> Span {
+        self.0
+    }
+}
 
 #[derive(Debug)]
 pub enum Compare {
@@ -24,7 +30,6 @@ pub enum Compare {
 #[derive(Debug)]
 pub enum RightHandSide {
     Comparison(Compare, Operand),
-    Quantified,
 }
 
 impl Parse for RightHandSide {
@@ -68,7 +73,7 @@ macro_rules! parser {
     (@Operator: $($name: ident = $val: literal)*) => {
         $(
             #[derive(Debug)]
-            pub struct $name;
+            pub struct $name(Ident);
             impl Parse for $name {
                 fn parse(input: ParseStream) -> Result<Self> {
                     let message = "invalid token";
@@ -77,8 +82,13 @@ macro_rules! parser {
                         if !v.to_string().eq_ignore_ascii_case($val) {
                             return Err(c.error(message));
                         }
-                        Ok((Self, rest))
+                        Ok((Self(v), rest))
                     })
+                }
+            }
+            impl GetSpan for $name {
+                fn get_span(&self) -> Span {
+                    self.0.span()
                 }
             }
         )*
@@ -86,18 +96,25 @@ macro_rules! parser {
     (@Symbol: $($name: ident { $($sym: literal => $kind: ident),* })*) => {
         $(
             #[derive(Debug)]
-            pub enum $name { $($kind,)* }
+            pub enum $name { $($kind(Span),)* }
             impl Parse for $name {
                 fn parse(input: ParseStream) -> Result<Self> {
                     let message = "invalid token";
                     input.step(|c| {
                         let (p1, rest) = c.punct().ok_or(c.error(message))?;
                         let ret = match p1.as_char() {
-                            $($sym => Self::$kind,)*
+                            $($sym => Self::$kind(p1.span()),)*
                             _ => return Err(Error::new(p1.span(), message)),
                         };
                         Ok((ret, rest))
                     })
+                }
+            }
+            impl GetSpan for $name {
+                fn get_span(&self) -> Span {
+                    match self {
+                        $(Self::$kind(s) => *s,)*
+                    }
                 }
             }
         )*
@@ -127,7 +144,7 @@ impl Parse for ConcatOperator {
             let (p1, rest) = c.punct().ok_or(c.error(message))?;
             let (p2, rest) = rest.punct().ok_or(c.error(message))?;
             match (p1.as_char(), p2.as_char()) {
-                ('|', '|') => Ok((Self, rest)),
+                ('|', '|') => Ok((Self(p1.span()), rest)),
                 _ => Err(Error::new(p1.span(), message)),
             }
         })
@@ -227,6 +244,29 @@ impl<N: fmt::Debug, T: fmt::Debug, Operator: fmt::Debug> fmt::Debug for Ast<N, T
                 .field("operator", &operator)
                 .field("right", &right)
                 .finish(),
+        }
+    }
+}
+
+impl<N, T: GetSpan, Operator: GetSpan> GetSpan for Ast<N, T, Operator> {
+    fn get_span(&self) -> Span {
+        match &self.right {
+            Some((o, _)) => o.get_span(),
+            None => self.left.get_span(),
+        }
+    }
+}
+
+impl GetSpan for Condition {
+    fn get_span(&self) -> Span {
+        match self {
+            Condition::Operand { left, right } => match right {
+                Some(rhs) => match rhs {
+                    RightHandSide::Comparison(_, right) => right.get_span(),
+                },
+                None => left.get_span(),
+            },
+            Condition::Not(me) => me.get_span(),
         }
     }
 }

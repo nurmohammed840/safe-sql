@@ -1,3 +1,4 @@
+use sql_parser::GetSpan;
 use std::{
     fs::File,
     io::{self, Write},
@@ -11,7 +12,7 @@ use log::{Level, Metadata, Record};
 use sql_parser::{grammar::Name, utils::suggest};
 
 pub fn get_table<'a>(info: &'a SchemaInfo, name: &Name) -> Result<&'a Table, AnalyseError> {
-    let (name, span) = (name.to_string(), name.span());
+    let (name, span) = (name.to_string(), name.get_span());
 
     let tables = info
         .get_public_tables()
@@ -21,7 +22,7 @@ pub fn get_table<'a>(info: &'a SchemaInfo, name: &Name) -> Result<&'a Table, Ana
         (
             span,
             format!(
-                "table does not exist: `{name}`nsuggest: {}",
+                "table does not exist: `{name}` \nsuggest: {}",
                 suggest(&name, tables.keys())
             ),
         )
@@ -29,7 +30,7 @@ pub fn get_table<'a>(info: &'a SchemaInfo, name: &Name) -> Result<&'a Table, Ana
 }
 
 pub fn get_column<'a>(table: &'a Table, name: &Name) -> Result<&'a Column, AnalyseError> {
-    let (name, span) = (name.to_string(), name.span());
+    let (name, span) = (name.to_string(), name.get_span());
     table.get(&name).ok_or_else(|| {
         (
             span,

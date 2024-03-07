@@ -24,8 +24,11 @@ impl SchemaInfo {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub enum DataType {
+    #[default]
+    Unknown,
+
     CharacterVarying,
     Text,
 
@@ -33,7 +36,7 @@ pub enum DataType {
     Boolean,
 
     /// `i8`
-    TinyInt,
+    TINYINT,
     /// `i16`
     SmallInt,
     /// `i32`
@@ -44,10 +47,37 @@ pub enum DataType {
     Real,
     /// `f64`
     DoublePrecision,
-
     /// generic number type
-    #[default]
     Numeric,
+
+    Array {
+        ty: Box<DataType>,
+    },
+}
+
+impl DataType {
+    pub fn is_numeric(&self) -> bool {
+        matches!(
+            self,
+            Self::Unknown
+                | Self::TINYINT
+                | Self::SmallInt
+                | Self::Integer
+                | Self::BigInt
+                | Self::Real
+                | Self::DoublePrecision
+                | Self::Numeric
+        )
+    }
+    pub fn is_unknown(&self) -> bool {
+        matches!(self, Self::Unknown)
+    }
+    pub fn is_bool(&self) -> bool {
+        matches!(self, Self::Boolean | Self::Unknown)
+    }
+    pub fn is_text(&self) -> bool {
+        matches!(self, Self::Text | Self::Unknown | Self::CharacterVarying)
+    }
 }
 
 #[derive(Debug, Default)]
@@ -96,8 +126,8 @@ impl SchemaInfo {
             let udt: String = row.get(7);
 
             let data_type = if data_type.eq_ignore_ascii_case("TINYINT") {
-                DataType::TinyInt
-            } else if data_type.eq_ignore_ascii_case("SMALLINT") {
+                DataType::TINYINT
+            } else if data_type.eq_ignore_ascii_case("smallint") {
                 DataType::SmallInt
             } else if data_type.eq_ignore_ascii_case("integer") {
                 DataType::Integer
@@ -105,23 +135,17 @@ impl SchemaInfo {
                 DataType::BigInt
             } else if data_type.eq_ignore_ascii_case("numeric") {
                 DataType::Numeric
-            } 
-            else if data_type.eq_ignore_ascii_case("real") {
+            } else if data_type.eq_ignore_ascii_case("real") {
                 DataType::Real
-            } 
-            else if data_type.eq_ignore_ascii_case("double precision") {
+            } else if data_type.eq_ignore_ascii_case("double precision") {
                 DataType::DoublePrecision
-            } 
-            else if data_type.eq_ignore_ascii_case("boolean") {
+            } else if data_type.eq_ignore_ascii_case("boolean") {
                 DataType::Boolean
-            } 
-            else if data_type.eq_ignore_ascii_case("character varying") {
+            } else if data_type.eq_ignore_ascii_case("character varying") {
                 DataType::CharacterVarying
-            }
-            else if data_type.eq_ignore_ascii_case("text") {
+            } else if data_type.eq_ignore_ascii_case("text") {
                 DataType::Text
-            }
-             else {
+            } else {
                 return Err(format!("{{ unknown_type: {data_type},  udt: {udt}, column: {column_name}, table: {table_name}, schema: {table_schema} }}").into());
             };
 

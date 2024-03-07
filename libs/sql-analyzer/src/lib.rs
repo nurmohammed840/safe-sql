@@ -1,9 +1,10 @@
 mod command;
-mod expr_analyzer;
+mod analyzer;
 mod schema_info;
 mod utils;
+mod err;
 
-use schema_info::{Column, SchemaInfo, Table};
+use schema_info::{Column, DataType, SchemaInfo, Table};
 use sql_parser::grammar::Name;
 use std::{env, error::Error};
 use syn::__private::Span;

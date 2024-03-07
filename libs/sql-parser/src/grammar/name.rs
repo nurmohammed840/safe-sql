@@ -1,4 +1,5 @@
 use crate::*;
+use std::fmt;
 use std::fmt::Display;
 use std::fmt::Write;
 
@@ -11,15 +12,6 @@ pub enum Name {
     String(Literal),
 }
 
-impl Name {
-    pub fn span(&self) -> Span {
-        match self {
-            Name::Ident(v) => v.span(),
-            Name::String(v) => v.span(),
-        }
-    }
-}
-
 pub struct Column<T> {
     pub schema_name: Option<Name>,
     pub table_name: Option<Name>,
@@ -29,16 +21,7 @@ pub struct Column<T> {
 #[derive(Debug, Clone)]
 pub struct TableName {
     pub schema_name: Option<Name>,
-    pub table_name: Name,
-}
-
-fn get_name(input: ParseStream) -> Result<Option<Name>> {
-    if !input.peek2(Token![.]) {
-        return Ok(None);
-    }
-    let name = input.parse()?;
-    input.parse::<Token![.]>()?;
-    Ok(Some(name))
+    pub alias: Name,
 }
 
 impl Parse for Name {
@@ -90,9 +73,18 @@ impl Parse for TableName {
     fn parse(input: ParseStream) -> Result<Self> {
         Ok(Self {
             schema_name: get_name(input)?,
-            table_name: input.parse()?,
+            alias: input.parse()?,
         })
     }
+}
+
+fn get_name(input: ParseStream) -> Result<Option<Name>> {
+    if !input.peek2(Token![.]) {
+        return Ok(None);
+    }
+    let name = input.parse()?;
+    input.parse::<Token![.]>()?;
+    Ok(Some(name))
 }
 
 impl Display for Name {
@@ -104,8 +96,8 @@ impl Display for Name {
     }
 }
 
-impl std::fmt::Debug for Name {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for Name {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.to_string())
     }
 }
@@ -121,6 +113,27 @@ impl<T: fmt::Debug> fmt::Debug for Column<T> {
             f.write_char('.')?;
         }
         self.alias.fmt(f)
+    }
+}
+
+impl GetSpan for Name {
+    fn get_span(&self) -> Span {
+        match self {
+            Name::Ident(v) => v.span(),
+            Name::String(v) => v.span(),
+        }
+    }
+}
+
+impl<T: GetSpan> GetSpan for Column<T> {
+    fn get_span(&self) -> Span {
+        self.alias.get_span()
+    }
+}
+
+impl GetSpan for TableName {
+    fn get_span(&self) -> Span {
+        self.alias.get_span()
     }
 }
 

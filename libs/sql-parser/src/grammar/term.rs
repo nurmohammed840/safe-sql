@@ -42,6 +42,17 @@ impl Parse for Term {
     }
 }
 
+impl GetSpan for Term {
+    fn get_span(&self) -> Span {
+        match self {
+            Term::Value(v) => v.get_span(),
+            Term::Column(v) => v.get_span(),
+            Term::Func(v) => v.get_span(),
+            Term::OrExpr(v) => GetSpan::get_span(v),
+        }
+    }
+}
+
 impl fmt::Debug for Term {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
