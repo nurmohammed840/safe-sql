@@ -1,9 +1,9 @@
 use self::grammar::Name;
-use self::utils::Many;
+use self::utils::SeparatedByComma;
 use crate::*;
 use grammar::ast::OrExpr;
 use grammar::Column;
-use utils::parse_keyword_if_matched;
+use utils::parse_kw_if_matched;
 
 pub enum SelectExpr {
     WildCard {
@@ -32,17 +32,17 @@ pub enum SelectFilter {
 pub struct Select {
     pub select_kw: Ident,
     pub filter: SelectFilter,
-    pub exprs: Many<SelectExpr>,
+    pub exprs: SeparatedByComma<SelectExpr>,
     pub from_kw: Ident,
 }
 
 impl Parse for Select {
     fn parse(input: ParseStream) -> Result<Self> {
         Ok(Self {
-            select_kw: parse_keyword_if_matched(input, "SELECT")?,
+            select_kw: parse_kw_if_matched(input, "SELECT")?,
             filter: input.parse()?,
             exprs: input.parse()?,
-            from_kw: parse_keyword_if_matched(input, "FROM")?,
+            from_kw: parse_kw_if_matched(input, "FROM")?,
         })
     }
 }
@@ -51,7 +51,7 @@ impl Parse for SelectExpr {
     fn parse(input: ParseStream) -> Result<Self> {
         let fork = input.fork();
         if let Ok(symbol) = fork.parse() {
-            let except = match parse_keyword_if_matched(&fork, "EXCEPT").ok() {
+            let except = match parse_kw_if_matched(&fork, "EXCEPT").ok() {
                 None => Punctuated::new(),
                 Some(_) => {
                     let content;
@@ -66,7 +66,7 @@ impl Parse for SelectExpr {
         let expr = input.parse()?;
         let mut alias = None;
 
-        if parse_keyword_if_matched(input, "AS").is_ok() {
+        if parse_kw_if_matched(input, "AS").is_ok() {
             alias = Some(input.parse()?)
         }
         Ok(Self::Expr { expr, alias })
@@ -75,12 +75,12 @@ impl Parse for SelectExpr {
 
 impl Parse for SelectFilter {
     fn parse(input: ParseStream) -> Result<Self> {
-        match parse_keyword_if_matched(input, "DISTINCT").ok() {
+        match parse_kw_if_matched(input, "DISTINCT").ok() {
             None => {
-                let _ = parse_keyword_if_matched(input, "ALL");
+                let _ = parse_kw_if_matched(input, "ALL");
                 Ok(SelectFilter::All)
             }
-            Some(kw) => match parse_keyword_if_matched(input, "ON").ok() {
+            Some(kw) => match parse_kw_if_matched(input, "ON").ok() {
                 None => Ok(SelectFilter::Distinct { kw }),
                 Some(on_kw) => {
                     let content;

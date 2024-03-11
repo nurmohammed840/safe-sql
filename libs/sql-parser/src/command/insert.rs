@@ -1,4 +1,4 @@
-use crate::{utils::parse_keyword_if_matched, *};
+use crate::{utils::parse_kw_if_matched, *};
 use grammar::{ast::OrExpr, Name, TableName};
 
 /// Ref: https://www.h2database.com/html/commands.html#insert
@@ -55,7 +55,7 @@ impl Parse for InsertKind {
             });
         }
         if kind.eq_ignore_ascii_case("DEFAULT") {
-            parse_keyword_if_matched(input, "VALUES")?;
+            parse_kw_if_matched(input, "VALUES")?;
             return Ok(Self::DefaultValues(kw));
         }
         Err(err_msg)
@@ -64,7 +64,7 @@ impl Parse for InsertKind {
 
 impl Parse for InsertExpr {
     fn parse(input: ParseStream) -> Result<Self> {
-        match parse_keyword_if_matched(input, "DEFAULT") {
+        match parse_kw_if_matched(input, "DEFAULT") {
             Ok(_) => Ok(Self::Default),
             Err(_) => Ok(Self::Insert(input.parse()?)),
         }
@@ -73,7 +73,7 @@ impl Parse for InsertExpr {
 
 impl Parse for Row {
     fn parse(input: ParseStream) -> Result<Self> {
-        if parse_keyword_if_matched(input, "ROW").is_ok()
+        if parse_kw_if_matched(input, "ROW").is_ok()
             || input.cursor().group(Delimiter::Parenthesis).is_some()
         {
             let contain;
@@ -88,8 +88,8 @@ impl Parse for Insert {
     fn parse(input: ParseStream) -> Result<Self> {
         Ok(Self {
             kw: (
-                parse_keyword_if_matched(input, "INSERT")?,
-                parse_keyword_if_matched(input, "INTO")?,
+                parse_kw_if_matched(input, "INSERT")?,
+                parse_kw_if_matched(input, "INTO")?,
             ),
             table_name: input.parse()?,
             column_name: {

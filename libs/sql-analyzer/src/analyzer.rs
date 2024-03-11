@@ -1,6 +1,7 @@
 use crate::schema_info::SchemaInfo;
 use crate::{err, utils, AnalyseError, DataType, Table};
 use sql_parser::grammar::{ast::*, Term};
+use sql_parser::GetSpan;
 use sql_parser::{function::FunctionKind, grammar::Value};
 
 pub trait Analyser {
@@ -152,75 +153,110 @@ impl Analyser for AnalyseExpr<'_> {
                 None => DataType::Unknown,
             },
             Term::Func(func) => match &func.value {
-                FunctionKind::ABS(expr) => {
-                    let ty = self.analyse_arithmetic(expr)?;
-                    err::expect_numeric(&ty, expr)?;
-                    ty
-                }
-                FunctionKind::ACOS(_) => todo!(),
-                FunctionKind::ASIN(_) => todo!(),
-                FunctionKind::ATAN(_) => todo!(),
-                FunctionKind::COS(e) => {
-                    let ty = self.analyse_arithmetic(e)?;
-                    err::expect_numeric(&ty, e)?;
-                    ty
-                }
-                FunctionKind::COSH(_) => todo!(),
-                FunctionKind::COT(_) => todo!(),
-                FunctionKind::SIN(_) => todo!(),
-                FunctionKind::SINH(_) => todo!(),
-                FunctionKind::TAN(_) => todo!(),
-                FunctionKind::TANH(_) => todo!(),
-                FunctionKind::ATAN2(_, _) => todo!(),
-                FunctionKind::BITAND(_, _) => todo!(),
-                FunctionKind::BITOR(_, _) => todo!(),
-                FunctionKind::BITXOR(_, _) => todo!(),
-                FunctionKind::BITNOT(_) => todo!(),
-                FunctionKind::BITNAND(_, _) => todo!(),
-                FunctionKind::BITNOR(_, _) => todo!(),
-                FunctionKind::BITXNOR(_, _) => todo!(),
-                FunctionKind::BITGET(_, _) => todo!(),
-                FunctionKind::BITCOUNT(_) => todo!(),
-                FunctionKind::LSHIFT(_, _) => todo!(),
-                FunctionKind::RSHIFT(_, _) => todo!(),
-                FunctionKind::ULSHIFT(_, _) => todo!(),
-                FunctionKind::URSHIFT(_, _) => todo!(),
-                FunctionKind::ROTATELEFT(_, _) => todo!(),
-                FunctionKind::ROTATERIGHT(_, _) => todo!(),
-                FunctionKind::MOD(_, _) => todo!(),
-                FunctionKind::CEIL(_) => todo!(),
-                FunctionKind::DEGREES(_) => todo!(),
-                FunctionKind::EXP(_) => todo!(),
-                FunctionKind::FLOOR(_) => todo!(),
-                FunctionKind::LN(_) => todo!(),
-                FunctionKind::LOG(_, _) => todo!(),
-                FunctionKind::LOG10(_) => todo!(),
-                FunctionKind::ORA_HASH(_) => todo!(),
-                FunctionKind::RADIANS(_) => todo!(),
-                FunctionKind::SQRT(_) => todo!(),
-                FunctionKind::PI() => todo!(),
-                FunctionKind::POWER(_, _) => todo!(),
-                FunctionKind::RAND(_) => todo!(),
-                FunctionKind::RANDOM_UUID() => todo!(),
-                FunctionKind::ROUND(_) => todo!(),
-                FunctionKind::SECURE_RAND(_) => todo!(),
-                FunctionKind::SIGN(_) => todo!(),
+                FunctionKind::PI() | FunctionKind::SIGN(_) => DataType::DoublePrecision,
+                FunctionKind::ABS(e)
+                | FunctionKind::CEIL(e)
+                | FunctionKind::FLOOR(e)
+                | FunctionKind::ROUND(e) => self.expect_numeric(e)?,
 
-                FunctionKind::ASCII(_) => todo!(),
-                FunctionKind::CHAR_LENGTH(_) => todo!(),
-                FunctionKind::CHAR(_) => todo!(),
-                FunctionKind::CONCAT(_) => todo!(),
-                FunctionKind::DIFFERENCE(_, _) => todo!(),
-                FunctionKind::HEXTORAW(_) => todo!(),
-                FunctionKind::LOWER(_) => todo!(),
-                FunctionKind::UPPER(_) => todo!(),
-                FunctionKind::LEFT(_, _) => todo!(),
-                FunctionKind::RIGHT(_, _) => todo!(),
-                FunctionKind::REPEAT(_, _) => todo!(),
-                FunctionKind::SOUNDEX(_) => todo!(),
-                FunctionKind::SPACE(_) => todo!(),
+                FunctionKind::ACOS(e)
+                | FunctionKind::ASIN(e)
+                | FunctionKind::ATAN(e)
+                | FunctionKind::COS(e)
+                | FunctionKind::COSH(e)
+                | FunctionKind::COT(e)
+                | FunctionKind::SIN(e)
+                | FunctionKind::SINH(e)
+                | FunctionKind::TAN(e)
+                | FunctionKind::TANH(e)
+                | FunctionKind::DEGREES(e)
+                | FunctionKind::EXP(e)
+                | FunctionKind::LN(e)
+                | FunctionKind::LOG(_, e)
+                | FunctionKind::LOG10(e)
+                | FunctionKind::RADIANS(e)
+                | FunctionKind::SQRT(e)
+                | FunctionKind::POWER(e, _) => {
+                    self.expect_numeric(e)?;
+                    DataType::DoublePrecision
+                }
+                FunctionKind::ATAN2(e1, e2) => {
+                    self.expect_numeric(e1)?;
+                    self.expect_numeric(e2)?;
+                    DataType::DoublePrecision
+                }
+
+                FunctionKind::BITAND(e1, e2)
+                | FunctionKind::BITOR(e1, e2)
+                | FunctionKind::BITXOR(e1, e2)
+                | FunctionKind::BITNAND(e1, e2)
+                | FunctionKind::BITNOR(e1, e2)
+                | FunctionKind::BITXNOR(e1, e2) => {
+                    let lhs_ty = self.get_bitwise_ty(e1)?;
+                    let rhs_ty = self.analyse_or_expr(e2)?;
+                    check_same_type(e2, &lhs_ty, &rhs_ty)?;
+                    lhs_ty
+                }
+
+                FunctionKind::BITNOT(e)
+                | FunctionKind::BITCOUNT(e)
+                | FunctionKind::BITGET(e, _)
+                | FunctionKind::LSHIFT(e, _)
+                | FunctionKind::RSHIFT(e, _)
+                | FunctionKind::ULSHIFT(e, _)
+                | FunctionKind::URSHIFT(e, _)
+                | FunctionKind::ROTATELEFT(e, _)
+                | FunctionKind::ROTATERIGHT(e, _) => self.get_bitwise_ty(e)?,
+
+                FunctionKind::MOD(e1, e2) => {
+                    let lhs_ty = self.analyse_arithmetic(e1)?;
+                    let rhs_ty = self.analyse_arithmetic(e2)?;
+                    check_same_type(e2, &lhs_ty, &rhs_ty)?;
+                    lhs_ty
+                }
+                // String Functions
+                FunctionKind::ASCII(_) | FunctionKind::CHAR_LENGTH(_) => DataType::Integer,
+                FunctionKind::CONCAT(_)
+                | FunctionKind::LOWER(_)
+                | FunctionKind::UPPER(_)
+                | FunctionKind::LEFT(_, _)
+                | FunctionKind::RIGHT(_, _)
+                | FunctionKind::REPEAT(_, _)
+                | FunctionKind::SPACE(_) => DataType::Text,
+
+                _ => todo!()
             },
             Term::OrExpr(expr) => self.analyse_or_expr(expr)?,
         })
+    }
+}
+
+fn check_same_type(
+    span: impl GetSpan,
+    lhs_ty: &DataType,
+    rhs_ty: &DataType,
+) -> Result<(), AnalyseError> {
+    if *lhs_ty != *rhs_ty {
+        return err::msg(
+            span,
+            format!("expected data type: {lhs_ty:?}, got: {rhs_ty:?}"),
+        );
+    }
+    Ok(())
+}
+
+impl AnalyseExpr<'_> {
+    fn expect_numeric(&mut self, e: &Arithmetic) -> Result<DataType, AnalyseError> {
+        let ty = self.analyse_arithmetic(e)?;
+        err::expect_numeric(&ty, e)?;
+        Ok(ty)
+    }
+
+    fn get_bitwise_ty(&mut self, e: &OrExpr) -> Result<DataType, AnalyseError> {
+        let ty = self.analyse_or_expr(e)?;
+        match ty {
+            DataType::TINYINT | DataType::SmallInt | DataType::Integer | DataType::BigInt => Ok(ty),
+            _ => err::msg(e,  format!("arguments should have TINYINT, SMALLINT, INTEGER, BIGINT, BINARY, or BINARY VARYING data type, but got: {ty:?}"))
+        }
     }
 }

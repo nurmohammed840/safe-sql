@@ -1,7 +1,8 @@
 #![allow(non_camel_case_types)]
 use crate::*;
 use grammar::ast::{Arithmetic, OrExpr};
-use utils::Many;
+use utils::SeparatedByComma;
+use proc_macro2::TokenStream;
 
 macro_rules! parse_arg {
     [$name: ident, $i: ident,] => {
@@ -19,24 +20,25 @@ macro_rules! parse_arg {
         }
     }
 }
-use syn::spanned::Spanned;
 
 macro_rules! define_function {
     [
         $(  $name: ident   $(| $alies: ident)*  (  $($arg: tt)*   )  ),*
     ] => {
-        pub const SQL_FUNC_NAMES: &[&str] = &[$(stringify!($name)),* ];
-        // #[derive(Debug)]
+        // pub const SQL_FUNC_NAMES: &[&str] = &[$(stringify!($name)),* ];
         pub type Function = WithSpan<FunctionKind>;
-        pub enum FunctionKind { $($name ($($arg)*)),* }
+        pub enum FunctionKind {
+            UnknownFunc(Ident, TokenStream),
+            $($name ($($arg)*)),*
+        }
         impl Parse for WithSpan<FunctionKind> {
             fn parse(input: ParseStream) -> Result<Self> {
-                let fn_name = input.parse::<Ident>()?.to_string();
+                let fn_name = input.parse::<Ident>()?;
                 let i;
                 parenthesized!(i in input);
-                Ok(Self::new(fn_name.span(), match fn_name.to_uppercase().as_str() {
+                Ok(Self::new(fn_name.span(), match fn_name.to_string().to_uppercase().as_str() {
                     $(stringify!($name) $(| stringify!($alies))* => parse_arg!($name, i, $($arg)*),)*
-                    kw => return Err(input.error(format!("unknown function: `{fn_name}` \nhint: {}", utils::suggest(kw, SQL_FUNC_NAMES.iter())))),
+                    _ => FunctionKind::UnknownFunc(fn_name, i.parse()?),
                 }))
             }
         }
@@ -44,7 +46,7 @@ macro_rules! define_function {
 }
 
 define_function! {
-    // # Numeric Function
+    // ----------------------- Numeric Function -----------------------
     ABS(Arithmetic),
     ACOS(Arithmetic),
     ASIN(Arithmetic),
@@ -88,15 +90,15 @@ define_function! {
     LOG(Arithmetic, Arithmetic),
     LOG10(Arithmetic),
 
-    ORA_HASH(OrExpr),
-    RADIANS(LitInt),
+    // ORA_HASH(OrExpr),
+    RADIANS(Arithmetic),
     SQRT(Arithmetic),
     PI(),
     POWER(Arithmetic, Arithmetic),
-    RAND | RANDOM(Arithmetic),
-    RANDOM_UUID | UUID(),
+    // RAND | RANDOM(Arithmetic),
+    // RANDOM_UUID | UUID(),
     ROUND(Arithmetic),
-    SECURE_RAND(LitInt),
+    // SECURE_RAND(LitInt),
     SIGN(Arithmetic),
 
     // ENCRYPT(..),
@@ -107,18 +109,18 @@ define_function! {
     // EXPAND(..),
     // ZERO(..)
 
-    // # String Function
+    // ----------------------- String Function -----------------------
 
     ASCII(LitStr),
     // BIT_LENGTH(),
     CHAR_LENGTH | CHARACTER_LENGTH | LENGTH(LitStr),
     // OCTET_LENGTH(),
-    CHAR | CHR(LitInt),
-    CONCAT(Many<LitStr>),
+    // CHAR | CHR(LitInt),
+    CONCAT(SeparatedByComma<LitStr>),
 
     // CONCAT_WS(),
-    DIFFERENCE(LitStr, LitStr),
-    HEXTORAW(LitStr),
+    // DIFFERENCE(LitStr, LitStr),
+    // HEXTORAW(LitStr),
     // RAWTOHEX(),
     // INSERT(),
     LOWER | LCASE(LitStr),
@@ -137,8 +139,8 @@ define_function! {
     // REGEXP_SUBSTR(),
     REPEAT(LitStr, LitInt),
     // REPLACE(),
-    SOUNDEX(LitStr),
-    SPACE(LitInt)
+    // SOUNDEX(LitStr),
+    SPACE(LitInt),
     // STRINGDECODE(),
     // STRINGENCODE(),
     // STRINGTOUTF8(),
@@ -154,18 +156,6 @@ define_function! {
     // TO_CHAR(),
     // TRANSLATE()
 
+    // ----------------------- Aggregate Functions -----------------------
+    AVG()
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-
-//     #[test]
-//     fn test_name() {
-//         let g: Function = utils::test::syntex! {
-//             add(6 + 5)
-//         }
-//         .unwrap();
-//         println!("{:#?}", g);
-//     }
-// }

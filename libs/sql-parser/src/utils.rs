@@ -13,11 +13,11 @@ pub mod test {
 }
 
 #[derive(Debug)]
-pub struct Many<T> {
-    pub values: Vec<T>
+pub struct SeparatedByComma<T> {
+    pub values: Vec<T>,
 }
 
-impl<T: Parse> Parse for Many<T> {
+impl<T: Parse> Parse for SeparatedByComma<T> {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut values = vec![];
         while !input.cursor().eof() {
@@ -27,11 +27,11 @@ impl<T: Parse> Parse for Many<T> {
             }
             input.parse::<Token![,]>()?;
         }
-        Ok(Many { values })
+        Ok(SeparatedByComma { values })
     }
 }
 
-impl<T: ops::Deref> ops::Deref for Many<T> {
+impl<T: ops::Deref> ops::Deref for SeparatedByComma<T> {
     type Target = Vec<T>;
 
     fn deref(&self) -> &Self::Target {
@@ -68,13 +68,25 @@ where
     msg
 }
 
-
-pub fn parse_keyword_if_matched(input: ParseStream, kw: &str) -> Result<Ident> {
+pub fn parse_kw_if_matched(input: ParseStream, kw: &str) -> Result<Ident> {
+    let err = || input.error(format!("expected keyword: `{kw}`"));
     input.step(|c| {
-        let err = input.error(format!("expected keyword: `{kw}`"));
-        let (keyword, rest) = c.ident().ok_or(err.clone())?;
+        let (keyword, rest) = c.ident().ok_or_else(err)?;
         if !keyword.to_string().eq_ignore_ascii_case(kw) {
-            return Err(err);
+            return Err(err());
+        }
+        Ok((keyword, rest))
+    })
+}
+pub fn parse_keywords_if_matched(input: ParseStream, kws: &[&str]) -> Result<Ident> {
+    let err = || input.error(format!("expected keywords: `{}`", kws.join(", ")));
+    input.step(|c| {
+        let (keyword, rest) = c.ident().ok_or_else(err)?;
+        let kw = keyword.to_string();
+        for expected_kw in kws {
+            if !kw.eq_ignore_ascii_case(expected_kw) {
+                return Err(err());
+            }
         }
         Ok((keyword, rest))
     })

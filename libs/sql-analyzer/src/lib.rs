@@ -43,7 +43,7 @@ pub trait SqlAnalyzer {
 
 thread_local! {
     static SCHEMA_INFO: Option<SchemaInfo> = {
-        let path = env::var("CARGO_TARGET_DIR").map(|dir| dir + "/target/safe-sql.log").unwrap_or_else(|_| "./safe-sql.log".to_string());
+        let path = env::var("SAFE_SQL_LOG").unwrap_or_else(|_| "./safe-sql.log".to_string());
         let logger = utils::new_logger(path);
         let _ = log::set_boxed_logger(Box::new(logger)).map(|()| log::set_max_level(log::LevelFilter::Info));
 

@@ -1,4 +1,4 @@
-use crate::{utils::parse_keyword_if_matched, *};
+use crate::{utils::parse_kw_if_matched, *};
 use grammar::ast::OrExpr;
 use grammar::TableName;
 
@@ -14,12 +14,12 @@ impl Parse for Delete {
     fn parse(input: ParseStream) -> Result<Self> {
         Ok(Delete {
             kw: (
-                parse_keyword_if_matched(input, "DELETE")?,
-                parse_keyword_if_matched(input, "FROM")?,
+                parse_kw_if_matched(input, "DELETE")?,
+                parse_kw_if_matched(input, "FROM")?,
             ),
             table_name: input.parse()?,
             where_expr: {
-                match parse_keyword_if_matched(input, "WHERE") {
+                match parse_kw_if_matched(input, "WHERE") {
                     Ok(_) => Some(input.parse()?),
                     Err(_) => None,
                 }

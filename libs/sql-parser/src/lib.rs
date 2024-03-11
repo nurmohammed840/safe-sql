@@ -3,6 +3,7 @@
 /// - https://en.wikipedia.org/wiki/SQL_syntax
 pub mod command;
 pub mod function;
+pub mod window;
 pub mod grammar;
 pub mod spanned;
 
