@@ -224,7 +224,8 @@ impl Analyser for AnalyseExpr<'_> {
                 | FunctionKind::REPEAT(_, _)
                 | FunctionKind::SPACE(_) => DataType::Text,
 
-                _ => todo!()
+                FunctionKind::AVG() => todo!(),
+                FunctionKind::UnknownFunc(name, _) => return err::msg(name.span(), "unknown function"),
             },
             Term::OrExpr(expr) => self.analyse_or_expr(expr)?,
         })

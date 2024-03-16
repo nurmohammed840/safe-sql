@@ -117,7 +117,7 @@ impl<T: fmt::Debug> fmt::Debug for Column<T> {
 }
 
 impl GetSpan for Name {
-    fn get_span(&self) -> Span {
+    fn span(&self) -> Span {
         match self {
             Name::Ident(v) => v.span(),
             Name::String(v) => v.span(),
@@ -126,14 +126,14 @@ impl GetSpan for Name {
 }
 
 impl<T: GetSpan> GetSpan for Column<T> {
-    fn get_span(&self) -> Span {
-        self.alias.get_span()
+    fn span(&self) -> Span {
+        self.alias.span()
     }
 }
 
 impl GetSpan for TableName {
-    fn get_span(&self) -> Span {
-        self.alias.get_span()
+    fn span(&self) -> Span {
+        self.alias.span()
     }
 }
 

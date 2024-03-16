@@ -5,7 +5,7 @@ use super::*;
 pub struct ConcatOperator(Span);
 
 impl GetSpan for ConcatOperator {
-    fn get_span(&self) -> Span {
+    fn span(&self) -> Span {
         self.0
     }
 }
@@ -87,7 +87,7 @@ macro_rules! parser {
                 }
             }
             impl GetSpan for $name {
-                fn get_span(&self) -> Span {
+                fn span(&self) -> Span {
                     self.0.span()
                 }
             }
@@ -111,7 +111,7 @@ macro_rules! parser {
                 }
             }
             impl GetSpan for $name {
-                fn get_span(&self) -> Span {
+                fn span(&self) -> Span {
                     match self {
                         $(Self::$kind(s) => *s,)*
                     }
@@ -249,24 +249,24 @@ impl<N: fmt::Debug, T: fmt::Debug, Operator: fmt::Debug> fmt::Debug for Ast<N, T
 }
 
 impl<N, T: GetSpan, Operator: GetSpan> GetSpan for Ast<N, T, Operator> {
-    fn get_span(&self) -> Span {
+    fn span(&self) -> Span {
         match &self.right {
-            Some((o, _)) => o.get_span(),
-            None => self.left.get_span(),
+            Some((o, _)) => o.span(),
+            None => self.left.span(),
         }
     }
 }
 
 impl GetSpan for Condition {
-    fn get_span(&self) -> Span {
+    fn span(&self) -> Span {
         match self {
             Condition::Operand { left, right } => match right {
                 Some(rhs) => match rhs {
-                    RightHandSide::Comparison(_, right) => right.get_span(),
+                    RightHandSide::Comparison(_, right) => right.span(),
                 },
-                None => left.get_span(),
+                None => left.span(),
             },
-            Condition::Not(me) => me.get_span(),
+            Condition::Not(me) => me.span(),
         }
     }
 }

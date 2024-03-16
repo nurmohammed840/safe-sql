@@ -43,12 +43,12 @@ impl Parse for Term {
 }
 
 impl GetSpan for Term {
-    fn get_span(&self) -> Span {
+    fn span(&self) -> Span {
         match self {
-            Term::Value(v) => v.get_span(),
-            Term::Column(v) => v.get_span(),
-            Term::Func(v) => v.get_span(),
-            Term::OrExpr(v) => GetSpan::get_span(v),
+            Term::Value(v) => v.span(),
+            Term::Column(v) => v.span(),
+            Term::Func(v) => v.span(),
+            Term::OrExpr(v) => GetSpan::span(v),
         }
     }
 }

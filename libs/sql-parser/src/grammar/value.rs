@@ -59,13 +59,13 @@ impl Parse for Value {
 }
 
 impl GetSpan for Value {
-    fn get_span(&self) -> Span {
+    fn span(&self) -> Span {
         match self {
             Value::String(v) => v.span(),
             Value::Int(v) => v.span(),
             Value::Float(v) => v.span(),
-            Value::Boolean(v) => v.get_span(),
-            Value::ARRAY(v) => v.get_span(),
+            Value::Boolean(v) => v.span(),
+            Value::ARRAY(v) => v.span(),
             Value::Null { span } => *span,
         }
     }

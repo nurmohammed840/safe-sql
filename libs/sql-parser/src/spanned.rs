@@ -2,7 +2,13 @@ use proc_macro2::Span;
 use std::ops::Deref;
 
 pub trait GetSpan {
-    fn get_span(&self) -> Span;
+    fn span(&self) -> Span;
+}
+
+impl GetSpan for Span {
+    fn span(&self) -> Span {
+        self.clone()
+    }
 }
 
 pub struct WithSpan<T> {
@@ -25,20 +31,19 @@ impl<T> Deref for WithSpan<T> {
 }
 
 impl<T> GetSpan for WithSpan<T> {
-    fn get_span(&self) -> Span {
+    fn span(&self) -> Span {
         self.span
     }
 }
 
-
 impl<T: GetSpan> GetSpan for Box<T> {
-    fn get_span(&self) -> Span {
-        T::get_span(&self)
+    fn span(&self) -> Span {
+        T::span(&self)
     }
 }
 
 impl<T: GetSpan> GetSpan for &T {
-    fn get_span(&self) -> Span {
-        T::get_span(&self)
+    fn span(&self) -> Span {
+        T::span(&self)
     }
 }

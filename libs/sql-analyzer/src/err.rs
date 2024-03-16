@@ -2,7 +2,7 @@ use crate::{schema_info::DataType, AnalyseError};
 use sql_parser::GetSpan;
 
 pub fn msg<T>(span: impl GetSpan, msg: impl Into<String>) -> Result<T, AnalyseError> {
-    Err((span.get_span(), msg.into()))
+    Err((span.span(), msg.into()))
 }
 
 pub fn expect_bool(ty: &DataType, span: impl GetSpan) -> Result<(), AnalyseError> {

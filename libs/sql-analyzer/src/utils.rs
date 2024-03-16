@@ -12,7 +12,7 @@ use log::{Level, Metadata, Record};
 use sql_parser::{grammar::Name, utils::suggest};
 
 pub fn get_table<'a>(info: &'a SchemaInfo, name: &Name) -> Result<&'a Table, AnalyseError> {
-    let (name, span) = (name.to_string(), name.get_span());
+    let (name, span) = (name.to_string(), name.span());
 
     let tables = info
         .get_public_tables()
@@ -30,7 +30,7 @@ pub fn get_table<'a>(info: &'a SchemaInfo, name: &Name) -> Result<&'a Table, Ana
 }
 
 pub fn get_column<'a>(table: &'a Table, name: &Name) -> Result<&'a Column, AnalyseError> {
-    let (name, span) = (name.to_string(), name.get_span());
+    let (name, span) = (name.to_string(), name.span());
     table.get(&name).ok_or_else(|| {
         (
             span,
