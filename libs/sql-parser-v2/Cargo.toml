@@ -1,0 +1,7 @@
+[package]
+name = "sql-parser-v2"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokens = { path = "../tokens" }
