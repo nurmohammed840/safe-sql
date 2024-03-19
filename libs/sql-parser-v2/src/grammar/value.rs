@@ -36,26 +36,26 @@ impl<Span: Clone> Parse<Span> for Value<Span> {
     }
 }
 
-#[test]
-fn test_name() {
-    let mut cursor = Cursor {
-        scope: &857,
-        tokens: &[
-            TokenTree::Ident(Ident {
-                span: 1,
-                name: "true".into(),
-            }),
-            TokenTree::Ident(Ident {
-                span: 2,
-                name: "false".into(),
-            }),
-            TokenTree::Literal(Literal {
-                span: 3,
-                value: "false".into(),
-            }),
-        ],
-    };
-    println!("{:#?}", cursor.parse::<Value<u32>>());
-    println!("{:#?}", cursor.parse::<Value<u32>>());
-    println!("{:#?}", cursor.parse::<Value<u32>>());
-}
+// #[test]
+// fn test_name() {
+//     let mut cursor = Cursor {
+//         scope: &857,
+//         tokens: &[
+//             TokenTree::Ident(Ident {
+//                 span: 1,
+//                 name: "true".into(),
+//             }),
+//             TokenTree::Ident(Ident {
+//                 span: 2,
+//                 name: "false".into(),
+//             }),
+//             TokenTree::Literal(Literal {
+//                 span: 3,
+//                 value: "false".into(),
+//             }),
+//         ],
+//     };
+//     println!("{:#?}", cursor.parse::<Value<u32>>());
+//     println!("{:#?}", cursor.parse::<Value<u32>>());
+//     println!("{:#?}", cursor.parse::<Value<u32>>());
+// }

@@ -1,3 +1,6 @@
+use std::fmt;
+
+pub mod cursor;
 pub mod lex;
 
 /// An enum representing a diagnostic level.
@@ -105,7 +108,7 @@ impl<Span> Diagnostic<Span> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Delimiter {
     Parenthesis,
     Brace,
@@ -147,7 +150,7 @@ pub struct Literal<Span> {
     pub value: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum TokenTree<Span> {
     Group(Group<Span>),
     Ident(Ident<Span>),
@@ -155,16 +158,27 @@ pub enum TokenTree<Span> {
     Literal(Literal<Span>),
 }
 
+impl<Span: fmt::Debug> fmt::Debug for TokenTree<Span> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Group(arg0) => arg0.fmt(f),
+            Self::Ident(arg0) => arg0.fmt(f),
+            Self::Punct(arg0) => arg0.fmt(f),
+            Self::Literal(arg0) => arg0.fmt(f),
+        }
+    }
+}
+
 pub struct Cursor<'a, Span> {
     pub scope: &'a Span,
-    pub tokens: &'a [TokenTree<Span>],
+    pub tokens: cursor::Cursor<'a, TokenTree<Span>>,
 }
 
 impl<Span> Cursor<'_, Span>
 where
     Span: Clone,
 {
-    pub fn error<T: std::fmt::Display>(&self, message: T) -> Diagnostic<Span> {
+    pub fn error<T: fmt::Display>(&self, message: T) -> Diagnostic<Span> {
         Diagnostic::spanned(
             vec![self.scope.clone()],
             Level::Error,
@@ -181,16 +195,16 @@ impl<Span> Cursor<'_, Span> {
     pub fn fork(&self) -> Self {
         Self {
             scope: self.scope,
-            tokens: self.tokens,
+            tokens: self.tokens.fork(),
         }
     }
 
     pub fn advance_to(&mut self, fork: &Self) {
-        self.tokens = fork.tokens
+        self.tokens.advance_to(&fork.tokens);
     }
 
     pub fn peek(&self) -> Option<&TokenTree<Span>> {
-        self.tokens.get(0)
+        self.tokens.peek()
     }
 
     pub fn parse<T: Parse<Span>>(&mut self) -> Result<T, Diagnostic<Span>> {
@@ -201,17 +215,10 @@ impl<Span> Cursor<'_, Span> {
 impl<'a, Span> Iterator for Cursor<'a, Span> {
     type Item = &'a TokenTree<Span>;
     fn next(&mut self) -> Option<Self::Item> {
-        match self.tokens.get(0) {
-            Some(s) => {
-                self.tokens = unsafe { self.tokens.get_unchecked(1..) };
-                return Some(s);
-            }
-            None => None,
-        }
+        self.tokens.next()
     }
 }
 
 pub trait Parse<Span>: Sized {
     fn parse(cursor: &mut Cursor<Span>) -> Result<Self, Diagnostic<Span>>;
 }
-
