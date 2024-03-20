@@ -22,6 +22,10 @@ impl<'a, T> Cursor<'a, T> {
         self.inner.get(0)
     }
 
+    pub fn peek_nth(&self, n: usize) -> Option<&T> {
+        self.inner.get(n)
+    }
+
     pub fn advance_by(&mut self, n: usize) -> &[T] {
         let (split, rest) = self.inner.split_at(n);
         self.inner = rest;
