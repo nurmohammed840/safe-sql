@@ -22,7 +22,7 @@ impl<'a, T> Cursor<'a, T> {
         self.inner.get(0)
     }
 
-    pub fn peek_nth(&self, n: usize) -> Option<&T> {
+    pub fn at(&self, n: usize) -> Option<&T> {
         self.inner.get(n)
     }
 
@@ -30,6 +30,17 @@ impl<'a, T> Cursor<'a, T> {
         let (split, rest) = self.inner.split_at(n);
         self.inner = rest;
         split
+    }
+
+    pub fn take_while_and_count(&mut self, mut cb: impl FnMut(&T) -> bool) -> usize {
+        let len = self.len();
+        while let Some(ch) = self.peek() {
+            if !cb(ch) {
+                break;
+            }
+            self.inner = unsafe { self.inner.get_unchecked(1..) };
+        }
+        len - self.len()
     }
 }
 

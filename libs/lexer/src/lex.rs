@@ -1,6 +1,5 @@
-use std::mem;
-
 use crate::{cursor::Cursor, *};
+use std::mem;
 // use std::ops::Range;
 
 pub fn token_stream(bytes: &[u8]) -> Result<Vec<TokenTree<()>>, Diagnostic<()>> {
@@ -46,7 +45,9 @@ pub fn token_stream(bytes: &[u8]) -> Result<Vec<TokenTree<()>>, Diagnostic<()>> 
                     stream,
                 }));
             }
-            // b'"' => {}
+            b'"' => {
+                let len = cook_string(&c);
+            }
             b'0'..=b'9' => {
                 let len = (ch == b'0')
                     .then(|| {
@@ -87,12 +88,15 @@ pub fn token_stream(bytes: &[u8]) -> Result<Vec<TokenTree<()>>, Diagnostic<()>> 
                 }));
             }
             _ if is_ident_start(ch) => {
-                let len = c.fork().take_while(is_ident_continue).count();
+                let len = c.fork().take_while_and_count(is_ident_continue);
                 let name = unsafe { consume_string(&mut c, len) };
                 tokens.push(TokenTree::Ident(Ident { span: (), name }));
             }
             _ => {
-                todo!()
+                return Err(Diagnostic::new(
+                    Level::Error,
+                    format!("unknown charecter: {ch}"),
+                ));
             }
         }
     }
@@ -100,6 +104,48 @@ pub fn token_stream(bytes: &[u8]) -> Result<Vec<TokenTree<()>>, Diagnostic<()>> 
         Some(_frame) => Err(Diagnostic::new(Level::Error, "ERROR")),
         None => Ok(tokens),
     }
+}
+
+fn cook_string(c: &Cursor<'_, u8>) -> Result<usize, Diagnostic<()>> {
+    let mut fork = c.fork();
+    let len = fork.len();
+    while let Some(ch) = fork.peek() {
+        match ch {
+            b'"' => {
+                fork.advance_by(1);
+                return Ok(len - fork.len());
+            }
+            b'\\' => match fork.at(1) {
+                Some(b'x') => {
+                    if !(matches!(fork.at(2), Some(b'0'..=b'7'))
+                        && matches!(fork.at(3), Some(b'0'..=b'9' | b'A'..=b'F' | b'a'..=b'f')))
+                    {
+                        return Err(Diagnostic::new(
+                            Level::Error,
+                            "Syntax Error: invalid character in numeric character escape",
+                        ));
+                    }
+                    fork.advance_by(4);
+                }
+                Some(b'n' | b'r' | b't' | b'\\' | b'\'' | b'"' | b'0') => {
+                    fork.advance_by(2);
+                }
+                _ => {
+                    return Err(Diagnostic::new(
+                        Level::Error,
+                        "Syntax Error: unknown character escape",
+                    ))
+                }
+            },
+            _ch => {
+                fork.advance_by(1);
+            }
+        }
+    }
+    Err(Diagnostic::new(
+        Level::Error,
+        "Syntax Error: Missing trailing `\"` symbol to terminate the string literal",
+    ))
 }
 
 unsafe fn consume_string(c: &mut Cursor<'_, u8>, len: usize) -> String {
@@ -122,7 +168,7 @@ fn parse_num(mut c: Cursor<'_, u8>, cb: fn(u8) -> bool) -> Result<usize, Diagnos
     }
     len = len - c.len();
 
-    let amt = c.fork().take_while(is_ident_continue).count();
+    let amt = c.fork().take_while_and_count(is_ident_continue);
     if amt != 0 {
         let suffix = unsafe { consume_string(&mut c, amt) };
         return Err(Diagnostic::new(
@@ -145,14 +191,16 @@ fn is_punct(ch: u8) -> bool {
 fn is_ident_start(ch: u8) -> bool {
     matches!(ch, b'A'..=b'Z' | b'_' | b'a'..=b'z')
 }
-fn is_ident_continue(ch: &&u8) -> bool {
+fn is_ident_continue(ch: &u8) -> bool {
     matches!(ch, b'0'..=b'9'| b'A'..=b'Z' | b'_' | b'a'..=b'z')
 }
 
 #[test]
 fn tree() {
-    // let g = 0b_1hkl;
-    // println!("{:#?}", token_stream(b"hello_74s 0x_15"));
-    println!("{:#?}", token_stream(b"(ad , adw)"));
+    println!("{:#?}", token_stream(b"(ad, adw)"));
 }
 
+#[test]
+fn test_name() {
+    println!("{}", b'\0');
+}
