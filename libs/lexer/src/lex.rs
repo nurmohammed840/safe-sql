@@ -1,26 +1,45 @@
-use crate::{cursor::Cursor, *};
+use crate::cursor::IterExt;
+use crate::*;
 use std::mem;
-// use std::ops::Range;
+use std::ops::Range;
+use std::slice::Iter;
 
-pub fn token_stream(bytes: &[u8]) -> Result<Vec<TokenTree<()>>, Diagnostic<()>> {
-    let mut c = Cursor::from(bytes);
+type Result<T, E = Diagnostic<Range<u32>>> = std::result::Result<T, E>;
+
+struct Offset {
+    bytes_len: u32,
+}
+impl Offset {
+    fn new(bytes: &[u8]) -> Self {
+        Self {
+            bytes_len: bytes.len() as u32,
+        }
+    }
+    fn get(&self, c: &Iter<u8>) -> u32 {
+        self.bytes_len - c.len() as u32
+    }
+}
+
+pub fn token_stream(bytes: &[u8]) -> Result<Vec<TokenTree<Range<u32>>>> {
+    let offset = Offset::new(bytes);
+    let mut c = bytes.iter();
     let mut stack = vec![];
     let mut tokens = vec![];
 
-    while let Some(&ch) = c.peek() {
+    loop {
+        let start = offset.get(&c);
+        let Some(&ch) = c.next() else { break };
         match ch {
             // skip whitespace
-            b' ' | b'\t'..=b'\r' => {
-                c.advance_by(1);
-            }
+            b' ' | b'\t'..=b'\r' => {}
             b'(' | b'{' | b'[' => {
-                c.advance_by(1);
-                stack.push((ch, mem::take(&mut tokens)));
+                stack.push((ch, start..start + 1, mem::take(&mut tokens)));
             }
             b')' | b'}' | b']' => {
-                c.advance_by(1);
-                let Some((delimiter, stream)) = stack.pop() else {
-                    return Err(Diagnostic::new(
+                let span_close = start..start + 1;
+                let Some((delimiter, span_open, stream)) = stack.pop() else {
+                    return Err(Diagnostic::spanned(
+                        vec![span_close],
                         Level::Error,
                         "Syntax Error: expected an item",
                     ));
@@ -30,56 +49,54 @@ pub fn token_stream(bytes: &[u8]) -> Result<Vec<TokenTree<()>>, Diagnostic<()>> 
                     (b'{', b'}') => Delimiter::Brace,
                     (b'[', b']') => Delimiter::Bracket,
                     _ => {
-                        return Err(Diagnostic::new(
+                        return Err(Diagnostic::spanned(
+                            vec![span_close],
                             Level::Error,
                             "Syntax Error: mismatch delimeter",
-                        ));
+                        )
+                        .span_note(vec![span_open], "open delimeter"));
                     }
                 };
                 let stream = mem::replace(&mut tokens, stream);
                 tokens.push(TokenTree::Group(Group {
-                    span: (),
-                    span_open: (),
-                    span_close: (),
+                    span: span_open.start..span_close.end,
+                    span_open,
+                    span_close,
                     delimiter,
                     stream,
                 }));
             }
-            b'"' => {
-                let len = cook_string(&c);
+            delimiter @ (b'"' | b'\'') => {
+                parse_string(&mut c, delimiter)
+                    .map_err(|msg| Diagnostic::new(Level::Error, msg))?;
+
+                let span = start..offset.get(&c);
+                let value = data(bytes, span.clone());
+                tokens.push(TokenTree::Literal(Literal { span, value }));
             }
             b'0'..=b'9' => {
-                let len = (ch == b'0')
-                    .then(|| {
-                        let mut fork = c.fork();
-                        fork.advance_by(1); // 0
-                        match fork.next()? {
-                            b'b' => Some(
-                                parse_num(fork, |ch| matches!(ch, b'0' | b'1')).map(|len| len + 2),
-                            ),
-                            b'o' => Some(
-                                parse_num(fork, |ch| matches!(ch, b'0'..=b'7')).map(|len| len + 2),
-                            ),
-                            b'x' => Some(
-                                parse_num(
-                                    fork,
-                                    |ch| matches!(ch, b'0'..=b'9' | b'A'..=b'F' | b'a'..=b'f'),
-                                )
-                                .map(|len| len + 2),
-                            ),
-                            _ => None,
-                        }
-                    })
-                    .flatten()
-                    .unwrap_or_else(|| parse_num(c.fork(), |ch| matches!(ch, b'0'..=b'9')))?;
+                let result = if ch == b'0' {
+                    match c.next() {
+                        Some(b'b') => parse_num(&mut c, |ch| matches!(ch, b'0' | b'1')),
+                        Some(b'o') => parse_num(&mut c, |ch| matches!(ch, b'0'..=b'7')),
+                        Some(b'x') => parse_num(
+                            &mut c,
+                            |ch| matches!(ch, b'0'..=b'9' | b'A'..=b'F' | b'a'..=b'f'),
+                        ),
+                        _ => parse_num_base10(&mut c),
+                    }
+                } else {
+                    parse_num_base10(&mut c)
+                };
+                let span = start..offset.get(&c);
+                result.map_err(|msg| Diagnostic::spanned(vec![span.clone()], Level::Error, msg))?;
 
-                let value = unsafe { consume_string(&mut c, len) };
-                tokens.push(TokenTree::Literal(Literal { span: (), value }));
+                let value = data(bytes, span.clone());
+                tokens.push(TokenTree::Literal(Literal { span, value }));
             }
             _ if is_punct(ch) => {
-                c.advance_by(1);
                 tokens.push(TokenTree::Punct(Punct {
-                    span: (),
+                    span: start..offset.get(&c),
                     char: ch.into(),
                     spacing: match c.peek() {
                         Some(ch) if is_punct(*ch) => Spacing::Joint,
@@ -88,14 +105,16 @@ pub fn token_stream(bytes: &[u8]) -> Result<Vec<TokenTree<()>>, Diagnostic<()>> 
                 }));
             }
             _ if is_ident_start(ch) => {
-                let len = c.fork().take_while_and_count(is_ident_continue);
-                let name = unsafe { consume_string(&mut c, len) };
-                tokens.push(TokenTree::Ident(Ident { span: (), name }));
+                skip_while(&mut c, is_ident_continue);
+                let span = start..offset.get(&c);
+                let name = data(bytes, span.clone());
+                tokens.push(TokenTree::Ident(Ident { span, name }));
             }
             _ => {
-                return Err(Diagnostic::new(
+                return Err(Diagnostic::spanned(
+                    vec![(start as u32)..offset.get(&c) as u32],
                     Level::Error,
-                    format!("unknown charecter: {ch}"),
+                    format!("unknown charecter: {}", char::from(ch)),
                 ));
             }
         }
@@ -106,83 +125,69 @@ pub fn token_stream(bytes: &[u8]) -> Result<Vec<TokenTree<()>>, Diagnostic<()>> 
     }
 }
 
-fn cook_string(c: &Cursor<'_, u8>) -> Result<usize, Diagnostic<()>> {
-    let mut fork = c.fork();
-    let len = fork.len();
-    while let Some(ch) = fork.peek() {
-        match ch {
-            b'"' => {
-                fork.advance_by(1);
-                return Ok(len - fork.len());
-            }
-            b'\\' => match fork.at(1) {
-                Some(b'x') => {
-                    if !(matches!(fork.at(2), Some(b'0'..=b'7'))
-                        && matches!(fork.at(3), Some(b'0'..=b'9' | b'A'..=b'F' | b'a'..=b'f')))
-                    {
-                        return Err(Diagnostic::new(
-                            Level::Error,
-                            "Syntax Error: invalid character in numeric character escape",
-                        ));
-                    }
-                    fork.advance_by(4);
-                }
-                Some(b'n' | b'r' | b't' | b'\\' | b'\'' | b'"' | b'0') => {
-                    fork.advance_by(2);
-                }
-                _ => {
-                    return Err(Diagnostic::new(
-                        Level::Error,
-                        "Syntax Error: unknown character escape",
-                    ))
-                }
-            },
-            _ch => {
-                fork.advance_by(1);
-            }
-        }
-    }
-    Err(Diagnostic::new(
-        Level::Error,
-        "Syntax Error: Missing trailing `\"` symbol to terminate the string literal",
-    ))
+#[inline]
+fn data(bytes: &[u8], Range { start, end }: Range<u32>) -> String {
+    String::from_utf8(bytes[(start as usize)..end as usize].to_vec()).unwrap()
 }
 
-unsafe fn consume_string(c: &mut Cursor<'_, u8>, len: usize) -> String {
-    String::from_utf8_unchecked(c.advance_by(len).to_vec())
+fn skip_and_count_while(c: &mut Iter<u8>, cb: fn(u8) -> bool) -> usize {
+    let len = c.len();
+    skip_while(c, cb);
+    len - c.len()
 }
 
-fn parse_num(mut c: Cursor<'_, u8>, cb: fn(u8) -> bool) -> Result<usize, Diagnostic<()>> {
-    let mut len = c.len();
-    let mut has_digit = false;
-
+fn skip_while(c: &mut Iter<u8>, cb: fn(u8) -> bool) {
     while let Some(&ch) = c.peek() {
-        let is_valid_digit = cb(ch);
-        if !(is_valid_digit || ch == b'_') {
+        if !cb(ch) {
             break;
         }
-        c.advance_by(1);
-        if !has_digit {
-            has_digit = is_valid_digit;
+        c.next();
+    }
+}
+
+fn parse_string(fork: &mut Iter<u8>, delimiter: u8) -> Result<(), &'static str> {
+    while let Some(ch) = fork.next() {
+        match ch {
+            b'\\' => match fork.next() {
+                Some(b'x') => {
+                    if !(matches!(fork.next(), Some(b'0'..=b'7'))
+                        && matches!(fork.next(), Some(b'0'..=b'9' | b'A'..=b'F' | b'a'..=b'f')))
+                    {
+                        return Err("Syntax Error: invalid character in numeric character escape");
+                    }
+                }
+                Some(b'n' | b'r' | b't' | b'\\' | b'\'' | b'"' | b'0') => {}
+                _ => return Err("Syntax Error: unknown character escape"),
+            },
+            ch if *ch == delimiter => return Ok(()),
+            _ => {}
         }
     }
-    len = len - c.len();
+    Err("Syntax Error: Missing trailing `\"` symbol to terminate the string literal")
+}
 
-    let amt = c.fork().take_while_and_count(is_ident_continue);
-    if amt != 0 {
-        let suffix = unsafe { consume_string(&mut c, amt) };
-        return Err(Diagnostic::new(
-            Level::Error,
-            format!("Syntax Error: invalid suffix `{suffix}` for number literal"),
-        ));
+fn parse_num_base10(c: &mut Iter<'_, u8>) -> Result<(), String> {
+    if c.len() == 0 {
+        return Ok(());
     }
-    if !has_digit {
-        return Err(Diagnostic::new(
-            Level::Error,
-            "Syntax Error: Missing digits after the integer base prefix",
-        ));
+    parse_num(c, |ch| matches!(ch, b'0'..=b'9'))
+}
+
+fn parse_num(c: &mut Iter<u8>, is_digit: fn(u8) -> bool) -> Result<(), String> {
+    if skip_and_count_while(c, is_digit) == 0 {
+        return Err("Syntax Error: Missing digits after the integer base prefix".into());
     }
-    Ok(len)
+    {
+        let data = c.as_slice();
+        let amt = skip_and_count_while(c, is_ident_continue);
+        if amt != 0 {
+            let suffix = unsafe { std::str::from_utf8_unchecked(&data[..amt]) };
+            return Err(format!(
+                "Syntax Error: invalid suffix `{suffix}` for number literal"
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn is_punct(ch: u8) -> bool {
@@ -191,16 +196,13 @@ fn is_punct(ch: u8) -> bool {
 fn is_ident_start(ch: u8) -> bool {
     matches!(ch, b'A'..=b'Z' | b'_' | b'a'..=b'z')
 }
-fn is_ident_continue(ch: &u8) -> bool {
+fn is_ident_continue(ch: u8) -> bool {
     matches!(ch, b'0'..=b'9'| b'A'..=b'Z' | b'_' | b'a'..=b'z')
 }
 
 #[test]
 fn tree() {
-    println!("{:#?}", token_stream(b"(ad, adw)"));
-}
-
-#[test]
-fn test_name() {
-    println!("{}", b'\0');
+    let input = b"0b1";
+    println!("{:#?}", token_stream(input));
+    // println!("{:#?}", std::str::from_utf8(&input[3..10]));
 }

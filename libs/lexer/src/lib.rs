@@ -2,6 +2,7 @@ use std::fmt;
 
 pub mod cursor;
 pub mod lex;
+// pub mod playground;
 
 /// An enum representing a diagnostic level.
 #[derive(Copy, Clone, Debug)]
@@ -106,6 +107,11 @@ impl<Span> Diagnostic<Span> {
     pub fn spans(&self) -> &[Span] {
         &self.spans
     }
+
+    /// Sets the `Span`s in `self` to `spans`.
+    pub fn set_spans(&mut self, spans: Vec<Span>) {
+        self.spans = spans;
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -195,7 +201,7 @@ impl<Span> Cursor<'_, Span> {
     pub fn fork(&self) -> Self {
         Self {
             scope: self.scope,
-            tokens: self.tokens.fork(),
+            tokens: self.tokens.clone(),
         }
     }
 
