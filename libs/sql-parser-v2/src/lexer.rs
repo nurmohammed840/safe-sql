@@ -1,10 +1,41 @@
-use crate::cursor::IterExt;
-use crate::*;
 use std::mem;
 use std::ops::Range;
 use std::slice::Iter;
+use token_type::*;
 
-type Result<T, E = Diagnostic<Range<u32>>> = std::result::Result<T, E>;
+pub type Span = Range<u32>;
+type Result<T, E = Diagnostic<Span>> = std::result::Result<T, E>;
+
+#[derive(Debug)]
+pub struct Group {
+    pub span: Span,
+    pub delimiter: Delimiter,
+    pub stream: Vec<TokenTree<Span>>,
+}
+
+impl token_type::Group for Group {
+    type Span = Span;
+
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+
+    fn span_open(&self) -> Span {
+        self.span.start..self.span.start + 1
+    }
+
+    fn span_close(&self) -> Span {
+        (self.span.end - 1)..self.span.end
+    }
+
+    fn delimiter(&self) -> Delimiter {
+        self.delimiter
+    }
+
+    fn stream(&self) -> &[TokenTree<Span>] {
+        &self.stream
+    }
+}
 
 struct Offset {
     bytes_len: u32,
@@ -20,7 +51,7 @@ impl Offset {
     }
 }
 
-pub fn token_stream(bytes: &[u8]) -> Result<Vec<TokenTree<Range<u32>>>> {
+pub fn token_stream(bytes: &[u8]) -> Result<(&str, Vec<TokenTree<Span>>)> {
     let offset = Offset::new(bytes);
     let mut c = bytes.iter();
     let mut stack = vec![];
@@ -58,21 +89,23 @@ pub fn token_stream(bytes: &[u8]) -> Result<Vec<TokenTree<Range<u32>>>> {
                     }
                 };
                 let stream = mem::replace(&mut tokens, old);
-                tokens.push(TokenTree::Group(Group {
+                tokens.push(TokenTree::Group(Box::new(Group {
                     span: span_open.start..span_close.end,
-                    span_open,
-                    span_close,
                     delimiter,
                     stream,
-                }));
+                })));
             }
             delimiter @ (b'"' | b'\'') => {
                 parse_string(&mut c, delimiter)
                     .map_err(|msg| Diagnostic::new(Level::Error, msg))?;
 
                 let span = start..offset.get(&c);
-                let value = data(bytes, span.clone());
-                tokens.push(TokenTree::Literal(Literal { span, value }));
+                if let Err(err) =
+                    std::str::from_utf8(&bytes[(span.start as usize)..(span.end as usize)])
+                {
+                    return Err(Diagnostic::new(Level::Error, err.to_string()));
+                }
+                tokens.push(TokenTree::Literal(span));
             }
             b'0'..=b'9' => {
                 let result = if ch == b'0' {
@@ -90,25 +123,21 @@ pub fn token_stream(bytes: &[u8]) -> Result<Vec<TokenTree<Range<u32>>>> {
                 };
                 let span = start..offset.get(&c);
                 result.map_err(|msg| Diagnostic::spanned(vec![span.clone()], Level::Error, msg))?;
-
-                let value = data(bytes, span.clone());
-                tokens.push(TokenTree::Literal(Literal { span, value }));
+                tokens.push(TokenTree::Literal(span));
             }
             _ if is_punct(ch) => {
-                tokens.push(TokenTree::Punct(Punct {
+                tokens.push(TokenTree::Punct {
                     span: start..offset.get(&c),
                     char: ch.into(),
                     spacing: match c.peek() {
                         Some(ch) if is_punct(*ch) => Spacing::Joint,
                         _ => Spacing::Alone,
                     },
-                }));
+                });
             }
             _ if is_ident_start(ch) => {
                 skip_while(&mut c, is_ident_continue);
-                let span = start..offset.get(&c);
-                let name = data(bytes, span.clone());
-                tokens.push(TokenTree::Ident(Ident { span, name }));
+                tokens.push(TokenTree::Ident(start..offset.get(&c)));
             }
             _ => {
                 return Err(Diagnostic::spanned(
@@ -121,13 +150,8 @@ pub fn token_stream(bytes: &[u8]) -> Result<Vec<TokenTree<Range<u32>>>> {
     }
     match stack.last() {
         Some(_frame) => Err(Diagnostic::new(Level::Error, "ERROR")),
-        None => Ok(tokens),
+        None => Ok((unsafe { std::str::from_utf8_unchecked(bytes) }, tokens)),
     }
-}
-
-#[inline]
-fn data(bytes: &[u8], Range { start, end }: Range<u32>) -> String {
-    String::from_utf8(bytes[(start as usize)..end as usize].to_vec()).unwrap()
 }
 
 fn skip_and_count_while(c: &mut Iter<u8>, cb: fn(u8) -> bool) -> usize {
@@ -200,8 +224,29 @@ fn is_ident_continue(ch: u8) -> bool {
     matches!(ch, b'0'..=b'9'| b'A'..=b'Z' | b'_' | b'a'..=b'z')
 }
 
-#[test]
-fn tree() {
-    let input = b"(ada, 54, (545, 54))";
-    println!("{:#?}", token_stream(input));
+// #[test]
+// fn tree() {
+//     let input = b"(ada, 54, (545, 54))";
+//     let (text, output) = token_stream(input).unwrap();
+
+//     struct SourceText<'a>(&'a str);
+//     impl Contex<Span> for SourceText<'_> {
+//         fn text(&self, span: Span) -> &str {
+//             "span"
+//         }
+//     }
+
+//     for tt in output {
+//         tt.print(&SourceText(text));
+//     }
+// }
+
+#[cfg(test)]
+mod tests {
+    use super::token_stream;
+
+    #[test]
+    fn test_name() {
+        println!("{:#?}", token_stream(b"ss Hello {} "));
+    }
 }

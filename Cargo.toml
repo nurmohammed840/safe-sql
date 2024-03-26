@@ -1,5 +1,5 @@
 [workspace]
-members = ["libs/sql-parser", "libs/sql-analyzer", "test", "libs/lexer", "libs/sql-parser-v2"]
+members = ["libs/sql-parser", "libs/sql-analyzer", "test", "libs/lexer", "libs/sql-parser-v2", "libs/token-type"]
 
 [package]
 name = "safe-sql"

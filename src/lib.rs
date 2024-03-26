@@ -18,3 +18,4 @@ pub fn sql(input: TokenStream) -> TokenStream {
         Err(err) => err.into_compile_error().into(),
     }
 }
+

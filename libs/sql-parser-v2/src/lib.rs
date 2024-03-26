@@ -1,3 +1,3 @@
-use lexer::*;
+pub mod lexer;
 
 pub mod grammar;
